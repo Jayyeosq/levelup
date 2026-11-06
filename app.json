@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "LevelUp+",
+    "slug": "levelup-plus",
+    "scheme": "levelup",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0E0F13",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.levelupplus.app"
+    },
+    "android": {
+      "package": "com.levelupplus.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0E0F13",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "LevelUp+ uses your location to track your runs and claim territory.",
+          "locationAlwaysAndWhenInUsePermission": "Allow LevelUp+ to keep tracking your run while your screen is locked.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "stravaAuthServer": "https://xmaioptoygjbcrwhszkk.supabase.co/functions/v1/strava-auth"
+    }
+  }
+}
