@@ -87,20 +87,20 @@ export function pruneTiles(s: GameState, today: number) {
 // ---------- badges ----------
 const maxRun = (s: GameState) => s.runs.reduce((m, r) => (r.flagged ? m : Math.max(m, r.km)), 0);
 const totalKm = (s: GameState) => s.runs.reduce((m, r) => (r.flagged ? m : m + r.km), 0);
-export type Badge = { id: string; emoji: string; name: string; desc: string; test: (s: GameState, today: number) => boolean };
+export type Badge = { id: string; label?: string; icon?: string; name: string; desc: string; test: (s: GameState, today: number) => boolean };
 export const BADGES: Badge[] = [
-  { id: 'first', emoji: '👟', name: 'First Steps', desc: 'Finish your first run', test: (s) => s.runs.some((r) => !r.flagged) },
-  { id: 'k5', emoji: '5️⃣', name: '5K Club', desc: 'Run 5 km in one go', test: (s) => maxRun(s) >= 5 },
-  { id: 'k10', emoji: '🔟', name: 'Double Digits', desc: 'Run 10 km in one go', test: (s) => maxRun(s) >= 10 },
-  { id: 'half', emoji: '🏅', name: 'Half Marathoner', desc: 'Run 21.1 km in one go', test: (s) => maxRun(s) >= 21.1 },
-  { id: 's3', emoji: '🔥', name: 'On Fire', desc: '3-day streak', test: (s) => s.bestStreak >= 3 },
-  { id: 's7', emoji: '☄️', name: 'Unstoppable', desc: '7-day streak', test: (s) => s.bestStreak >= 7 },
-  { id: 'early', emoji: '🌅', name: 'Sunrise Runner', desc: 'Start a run before 8am', test: (s) => s.runs.some((r) => r.early && !r.flagged) },
-  { id: 't50', emoji: '📏', name: '50 km Total', desc: 'Run 50 km overall', test: (s) => totalKm(s) >= 50 },
-  { id: 't100', emoji: '💯', name: 'Century', desc: 'Run 100 km overall', test: (s) => totalKm(s) >= 100 },
-  { id: 'land', emoji: '🚩', name: 'Land Grabber', desc: 'Hold 10 tiles at once', test: (s, t) => Object.keys(heldTiles(s, t)).length >= 10 },
-  { id: 'explorer', emoji: '🧭', name: 'Explorer', desc: 'Run through 50 different tiles', test: (s) => Object.keys(s.visited).length >= 50 },
-  { id: 'towns', emoji: '🗺️', name: 'Town Hopper', desc: 'Hold tiles in 3 different towns', test: (s, t) => areasHeld(s, t).length >= 3 },
+  { id: 'first', icon: 'play', name: 'First Steps', desc: 'Finish your first run', test: (s) => s.runs.some((r) => !r.flagged) },
+  { id: 'k5', label: '5K', name: '5K Club', desc: 'Run 5 km in one go', test: (s) => maxRun(s) >= 5 },
+  { id: 'k10', label: '10K', name: 'Double Digits', desc: 'Run 10 km in one go', test: (s) => maxRun(s) >= 10 },
+  { id: 'half', label: '21K', name: 'Half Marathoner', desc: 'Run 21.1 km in one go', test: (s) => maxRun(s) >= 21.1 },
+  { id: 's3', label: '3d', name: 'On Fire', desc: '3-day streak', test: (s) => s.bestStreak >= 3 },
+  { id: 's7', label: '7d', name: 'Unstoppable', desc: '7-day streak', test: (s) => s.bestStreak >= 7 },
+  { id: 'early', icon: 'sunrise', name: 'Sunrise Runner', desc: 'Start a run before 8am', test: (s) => s.runs.some((r) => r.early && !r.flagged) },
+  { id: 't50', label: '50', name: '50 km Total', desc: 'Run 50 km overall', test: (s) => totalKm(s) >= 50 },
+  { id: 't100', label: '100', name: 'Century', desc: 'Run 100 km overall', test: (s) => totalKm(s) >= 100 },
+  { id: 'land', icon: 'flag', name: 'Land Grabber', desc: 'Hold 10 tiles at once', test: (s, t) => Object.keys(heldTiles(s, t)).length >= 10 },
+  { id: 'explorer', icon: 'compass', name: 'Explorer', desc: 'Run through 50 different tiles', test: (s) => Object.keys(s.visited).length >= 50 },
+  { id: 'towns', icon: 'map', name: 'Town Hopper', desc: 'Hold tiles in 3 different towns', test: (s, t) => areasHeld(s, t).length >= 3 },
 ];
 
 // ---------- streak ----------
@@ -142,8 +142,8 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
   };
 
   // Anti-cheat: too fast on average or too short to count.
-  if (km < 0.2) run.flagged = 'Too short to count (under 200 m).';
-  else if (km >= 1 && paceMin < MIN_PACE_MIN_PER_KM) run.flagged = `Average pace ${fmtPace(paceMin)} is faster than a human run, so it doesn't count.`;
+  if (km < 0.2) run.flagged = 'Too short to count (under 200 m)';
+  else if (km >= 1 && paceMin < MIN_PACE_MIN_PER_KM) run.flagged = `Average pace ${fmtPace(paceMin)} is faster than a human run, so it doesn't count`;
   if (run.flagged) {
     breakdown.push([run.flagged, null]);
     s.runs.unshift(run);
@@ -172,16 +172,16 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
 
   let mult = 1 + Math.min(0.5, 0.1 * (s.streak - 1));
   const multNotes: string[] = [];
-  if (s.streak > 1) multNotes.push(`🔥 ${s.streak}-day streak +${Math.round((mult - 1) * 100)}%`);
-  if (early) { mult += 0.2; multNotes.push('🌅 Before 8am +20%'); }
+  if (s.streak > 1) multNotes.push(`${s.streak}-day streak +${Math.round((mult - 1) * 100)}%`);
+  if (early) { mult += 0.2; multNotes.push('Before 8am +20%'); }
   let xp = Math.round(base * mult);
   if (mult > 1) breakdown.push([multNotes.join(' · '), xp - Math.round(base)]);
 
   // Personal bests.
-  if (s.runs.some((r) => !r.flagged) && km > s.bests.longestKm) { xp += 100; breakdown.push(['🚀 Longest run PB', 100]); }
+  if (s.runs.some((r) => !r.flagged) && km > s.bests.longestKm) { xp += 100; breakdown.push(['Longest run PB', 100]); }
   s.bests.longestKm = Math.max(s.bests.longestKm, km);
   if (km >= 3) {
-    if (s.bests.paceMinKm !== null && paceMin < s.bests.paceMinKm) { xp += 100; breakdown.push([`⚡ Fastest pace PB (${fmtPace(paceMin)})`, 100]); }
+    if (s.bests.paceMinKm !== null && paceMin < s.bests.paceMinKm) { xp += 100; breakdown.push([`Fastest pace PB (${fmtPace(paceMin)})`, 100]); }
     if (s.bests.paceMinKm === null || paceMin < s.bests.paceMinKm) s.bests.paceMinKm = paceMin;
   }
 
@@ -197,7 +197,7 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
   }
   const after = heldTiles(s, today);
   const tilesCaptured = Object.keys(after).filter((id) => !(id in before)).length;
-  if (tilesCaptured) { xp += tilesCaptured * 5; breakdown.push([`🚩 ${tilesCaptured} tile${tilesCaptured > 1 ? 's' : ''} captured × 5`, tilesCaptured * 5]); }
+  if (tilesCaptured) { xp += tilesCaptured * 5; breakdown.push([`${tilesCaptured} tile${tilesCaptured > 1 ? 's' : ''} captured × 5`, tilesCaptured * 5]); }
 
   run.xp = xp;
   s.runs.unshift(run);
@@ -212,7 +212,7 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
   if (newBadges.length) {
     const bonus = newBadges.length * 50;
     s.xp += bonus; run.xp += bonus;
-    breakdown.push([`🎖️ ${newBadges.length} new badge${newBadges.length > 1 ? 's' : ''} × 50`, bonus]);
+    breakdown.push([`${newBadges.length} new badge${newBadges.length > 1 ? 's' : ''} × 50`, bonus]);
   }
 
   const levelAfter = levelOf(s.xp);

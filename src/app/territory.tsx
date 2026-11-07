@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import MapView, { Polygon, Polyline } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, s } from '../components/ui';
+import { C, Hex, num, s } from '../components/ui';
 import { areasHeld, dayOf, heldTiles } from '../lib/game';
 import { areaOfTile, tileCenter, tilePolygon } from '../lib/geo';
 import { useStore } from '../lib/store';
@@ -40,12 +40,15 @@ export default function Territory() {
       </MapView>
       <SafeAreaView edges={['top']} style={{ position: 'absolute', top: 0, left: 0, right: 0 }} pointerEvents="box-none">
         <View style={[s.card, { margin: 12, opacity: 0.96 }]}>
-          <Text style={s.title}>🚩 {Object.keys(held).length} tiles held</Text>
-          <Text style={s.sub}>
-            {areas.length ? areas.slice(0, 3).map(([a, n]) => `${a} ${n}`).join(' · ') : 'Run anywhere to claim the hexes you pass through.'}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Hex size={20} />
+            <Text style={[s.title, num]}>{Object.keys(held).length} tiles held</Text>
+          </View>
+          <Text style={[s.sub, { marginTop: 4 }]}>
+            {areas.length ? areas.slice(0, 3).map(([a, n]) => `${a} ${n}`).join(' · ') : 'Run anywhere to claim the hexes you pass through'}
           </Text>
           {sel && (
-            <Text style={[s.txt, { marginTop: 8, color: C.acc2 }]}>
+            <Text style={[s.txt, num, { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line }]}>
               {areaOfTile(sel)} tile · you ran {held[sel].toFixed(2)} km here in the last 30 days
             </Text>
           )}

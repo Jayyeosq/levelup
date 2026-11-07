@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Btn, C, Card, s } from '../components/ui';
+import { Btn, C, Card, Icon, s, SectionLabel } from '../components/ui';
 import { levelOf, titleOf } from '../lib/game';
 import { TOWNS } from '../lib/geo';
 import { useStore } from '../lib/store';
@@ -28,7 +28,7 @@ export default function ProfileScreen() {
       const t = await strava.connect();
       if (!t) return; // user closed the sheet
       setTokens(t);
-      Alert.alert('Strava connected 🎉', 'Import your recent runs to earn XP for them?', [
+      Alert.alert('Strava connected', 'Import your recent runs to earn XP for them?', [
         { text: 'Later', style: 'cancel' },
         { text: 'Import last 90 days', onPress: () => doImport(90) },
       ]);
@@ -40,7 +40,7 @@ export default function ProfileScreen() {
     try {
       const runs = await strava.fetchRuns(days, (n) => setBusy(`Fetching runs from Strava… ${n}`));
       const r = importRuns(runs);
-      Alert.alert('Import done', r.added ? `Imported ${r.added} run${r.added > 1 ? 's' : ''} · +${r.xpGained.toLocaleString()} XP` : 'No new runs — everything is already imported.');
+      Alert.alert('Import done', r.added ? `Imported ${r.added} run${r.added > 1 ? 's' : ''} · +${r.xpGained.toLocaleString()} XP` : 'No new runs. Everything is already imported.');
     } catch (e: any) { Alert.alert('Import failed', e?.message ?? String(e)); }
     finally { setBusy(null); }
   };
@@ -56,42 +56,42 @@ export default function ProfileScreen() {
     <SafeAreaView edges={['top']} style={s.screen}>
       <ScrollView contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
         {/* Identity */}
-        <View style={{ alignItems: 'center', marginBottom: 14 }}>
+        <View style={{ alignItems: 'center', marginBottom: 8 }}>
           <Text style={{ fontSize: 64 }}>{profile.avatar}</Text>
           <Text style={[s.title, { marginTop: 4 }]}>{profile.name || 'Runner'}</Text>
           <Text style={s.sub}>Level {L} · {titleOf(L)}{profile.homeTown ? ` · ${profile.homeTown}` : ''}</Text>
         </View>
 
-        <Text style={s.sec}>Profile</Text>
+        <SectionLabel>Profile</SectionLabel>
         <Card>
-          <Text style={[s.sub, { marginBottom: 6 }]}>Display name</Text>
+          <Text style={[s.sub, { marginTop: 0, marginBottom: 8 }]}>Display name</Text>
           <TextInput value={profile.name} onChangeText={(name) => setProfile({ name })} placeholder="e.g. Jay" placeholderTextColor={C.mut} style={input} maxLength={24} />
 
-          <Text style={[s.sub, { marginTop: 14, marginBottom: 6 }]}>Avatar</Text>
+          <Text style={[s.sub, { marginTop: 16, marginBottom: 8 }]}>Avatar</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {AVATARS.map((a) => (
               <Pressable key={a} onPress={() => setProfile({ avatar: a })}
-                style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card2, borderWidth: 2, borderColor: profile.avatar === a ? C.acc : 'transparent' }}>
+                style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card2, borderWidth: 2, borderColor: profile.avatar === a ? C.acc : 'transparent' }}>
                 <Text style={{ fontSize: 24 }}>{a}</Text>
               </Pressable>
             ))}
           </View>
 
-          <Text style={[s.sub, { marginTop: 14, marginBottom: 6 }]}>Home town (your turf to defend)</Text>
+          <Text style={[s.sub, { marginTop: 16, marginBottom: 8 }]}>Home town, your turf to defend</Text>
           <Pressable onPress={() => setTownsOpen(true)} style={input}>
             <Text style={{ color: profile.homeTown ? C.txt : C.mut, fontSize: 15 }}>{profile.homeTown || 'Choose your town'}</Text>
           </Pressable>
 
-          <Text style={[s.sub, { marginTop: 14, marginBottom: 6 }]}>Weekly goal</Text>
+          <Text style={[s.sub, { marginTop: 16, marginBottom: 8 }]}>Weekly goal</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Btn title="−" kind="ghost" onPress={() => setProfile({ weeklyGoalKm: Math.max(5, profile.weeklyGoalKm - 5) })} style={{ width: 54 }} />
+            <Btn title="−" kind="ghost" onPress={() => setProfile({ weeklyGoalKm: Math.max(5, profile.weeklyGoalKm - 5) })} style={{ width: 56 }} />
             <Text style={[s.title, { flex: 1, textAlign: 'center' }]}>{profile.weeklyGoalKm} km</Text>
-            <Btn title="+" kind="ghost" onPress={() => setProfile({ weeklyGoalKm: Math.min(150, profile.weeklyGoalKm + 5) })} style={{ width: 54 }} />
+            <Btn title="+" kind="ghost" onPress={() => setProfile({ weeklyGoalKm: Math.min(150, profile.weeklyGoalKm + 5) })} style={{ width: 56 }} />
           </View>
         </Card>
 
         {/* Strava */}
-        <Text style={s.sec}>Strava</Text>
+        <SectionLabel>Strava</SectionLabel>
         <Card>
           {!tokens ? (
             <>
@@ -100,31 +100,34 @@ export default function ProfileScreen() {
                   <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>S</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.txt, { fontWeight: '700' }]}>Strava</Text>
+                  <Text style={[s.txt, { fontWeight: '500' }]}>Strava</Text>
                   <Text style={s.sub}>Import your runs and earn XP for them. You can disconnect any time.</Text>
                 </View>
               </View>
               <Btn title="Connect with Strava" onPress={doConnect} style={{ backgroundColor: STRAVA_ORANGE }} />
               {!strava.isConfigured() && (
-                <Text style={[s.sub, { marginTop: 8, fontSize: 11.5 }]}>Developer note: add your server address to app.json → extra.stravaAuthServer (see STRAVA_SETUP.md).</Text>
+                <Text style={[s.sub, { marginTop: 8, fontSize: 12 }]}>Developer note: add your server address to app.json → extra.stravaAuthServer (see STRAVA_SETUP.md).</Text>
               )}
             </>
           ) : (
             <>
-              <Text style={[s.txt, { fontWeight: '700' }]}>
-                ✅ Connected{tokens.athlete?.firstname ? ` as ${tokens.athlete.firstname} ${tokens.athlete.lastname ?? ''}` : ''}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="check" color={C.good} />
+                <Text style={[s.txt, { fontWeight: '500', flex: 1 }]}>
+                  Connected{tokens.athlete?.firstname ? ` as ${tokens.athlete.firstname} ${tokens.athlete.lastname ?? ''}` : ''}
+                </Text>
+              </View>
               <Text style={[s.sub, { marginBottom: 12 }]}>{stravaRuns} runs imported from Strava. Already-imported runs are never counted twice.</Text>
               <View style={s.row}>
                 <Btn title="Last 30 days" kind="ghost" onPress={() => doImport(30)} style={{ flex: 1, paddingHorizontal: 6 }} />
                 <Btn title="90 days" kind="ghost" onPress={() => doImport(90)} style={{ flex: 1, paddingHorizontal: 6 }} />
                 <Btn title="1 year" kind="ghost" onPress={() => doImport(365)} style={{ flex: 1, paddingHorizontal: 6 }} />
               </View>
-              <Text style={[s.sub, { marginTop: 10, fontSize: 12 }]}>Imported runs earn XP and badges like normal. Only runs from the last 30 days hold tiles on the map.</Text>
+              <Text style={[s.sub, { marginTop: 12, fontSize: 12 }]}>Imported runs earn XP and badges like normal. Only runs from the last 30 days hold tiles on the map.</Text>
               <Pressable onPress={doDisconnect}><Text style={[s.sub, { marginTop: 12, textAlign: 'center' }]}>Disconnect Strava</Text></Pressable>
             </>
           )}
-          <Text style={{ color: STRAVA_ORANGE, fontSize: 11, fontWeight: '800', textAlign: 'right', marginTop: 12 }}>POWERED BY STRAVA</Text>
+          <Text style={{ color: STRAVA_ORANGE, fontSize: 12, fontWeight: '600', textAlign: 'right', marginTop: 12 }}>Powered by Strava</Text>
         </Card>
       </ScrollView>
 
@@ -139,12 +142,12 @@ export default function ProfileScreen() {
       <Modal visible={townsOpen} animationType="slide" transparent onRequestClose={() => setTownsOpen(false)}>
         <View style={s.ov}>
           <View style={s.sheet}>
-            <Text style={[s.title, { marginBottom: 10 }]}>Choose your home town</Text>
+            <Text style={[s.title, { marginBottom: 12 }]}>Choose your home town</Text>
             <ScrollView>
               {TOWNS.map(([t]) => t).sort().map((t) => (
                 <Pressable key={t} onPress={() => { setProfile({ homeTown: t }); setTownsOpen(false); }}
-                  style={{ paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: C.line }}>
-                  <Text style={[s.txt, profile.homeTown === t && { color: C.acc, fontWeight: '800' }]}>{t}</Text>
+                  style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                  <Text style={[s.txt, profile.homeTown === t && { color: C.acc, fontWeight: '600' }]}>{t}</Text>
                 </Pressable>
               ))}
             </ScrollView>

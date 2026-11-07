@@ -1,9 +1,22 @@
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Btn, C, Card, LevelHeader, ResultModal, s } from '../components/ui';
+import { BadgeHex, Btn, C, Card, Icon, LevelHeader, num, ResultModal, s, SectionLabel } from '../components/ui';
 import { BADGES, levelOf, TITLES, xpForLevel } from '../lib/game';
 import { makeTestRun, useStore } from '../lib/store';
 import { currentPosition } from '../lib/tracker';
+
+const XP_RULES: [string, string][] = [
+  ['Every km', '10 XP'],
+  ['Past 60 km in a week', 'Half rate'],
+  ['Each day of your streak', '+10%, max +50%'],
+  ['Start before 8am', '+20%'],
+  ['Longest run PB', '+100'],
+  ['Pace PB, 3 km or more', '+100'],
+  ['Each new tile', '+5'],
+  ['Each new badge', '+50'],
+  ['Every 7-day streak', '1 freeze, max 2'],
+  ['Faster than 2:30/km on average', 'Not counted'],
+];
 
 export default function Progress() {
   const { state, addRun, reset, lastResult, clearResult } = useStore();
@@ -25,44 +38,48 @@ export default function Progress() {
       <ScrollView contentContainerStyle={s.pad}>
         <LevelHeader xp={state.xp} />
 
-        <Text style={s.sec}>Badges · {got}/{BADGES.length}</Text>
+        <SectionLabel>Badges · {got} of {BADGES.length}</SectionLabel>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {BADGES.map((b) => {
             const on = !!state.badges[b.id];
             return (
-              <View key={b.id} style={[s.card, { width: '31.5%', alignItems: 'center', padding: 10, marginBottom: 0, opacity: on ? 1 : 0.35 }]}>
-                <Text style={{ fontSize: 28 }}>{b.emoji}</Text>
-                <Text style={{ color: C.txt, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 4 }}>{b.name}</Text>
-                <Text style={{ color: C.mut, fontSize: 10, textAlign: 'center', marginTop: 2 }}>{b.desc}</Text>
+              <View key={b.id} style={[s.card, { width: '31.5%', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8, marginBottom: 0 }]}>
+                <BadgeHex b={b} on={on} />
+                <Text style={{ color: on ? C.txt : C.sec, fontSize: 12, fontWeight: '500', textAlign: 'center', marginTop: 8 }}>{b.name}</Text>
+                <Text style={{ color: C.mut, fontSize: 11, lineHeight: 14, textAlign: 'center', marginTop: 2 }}>{b.desc}</Text>
               </View>
             );
           })}
         </View>
 
-        <Text style={s.sec}>Titles</Text>
-        <Card>
+        <SectionLabel>Titles</SectionLabel>
+        <Card style={{ paddingVertical: 8 }}>
           {TITLES.map(([lv, t], i) => {
             const next = TITLES[i + 1];
             const on = L >= lv;
             return (
-              <View key={t} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7, opacity: on ? 1 : 0.4 }}>
-                <Text style={[s.txt, { fontWeight: '700' }]}>{on ? '✅' : '🔒'} {t}</Text>
-                <Text style={s.sub}>Lv {lv}{next ? `–${next[0] - 1}` : '+'} · ~{Math.round(xpForLevel(lv) / 10)} km</Text>
+              <View key={t} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
+                <Icon name={on ? 'check' : 'lock'} color={on ? C.acc : C.mut} />
+                <Text style={[s.txt, { flex: 1, fontWeight: '500', color: on ? C.txt : C.sec }]}>{t}</Text>
+                <Text style={[s.sub, num]}>Lv {lv}{next ? `–${next[0] - 1}` : '+'} · ~{Math.round(xpForLevel(lv) / 10)} km</Text>
               </View>
             );
           })}
         </Card>
 
-        <Text style={s.sec}>How XP works</Text>
-        <Card>
-          <Text style={[s.sub, { lineHeight: 21, fontSize: 13.5 }]}>
-            {'10 XP per km (½ rate after 60 km in a week)\n🔥 Streak: +10% per day in a row, max +50%\n🌅 Start before 8am: +20%\n🚀 Longest-run PB +100 · ⚡ Pace PB (3 km+) +100\n🚩 Each new tile captured +5 · 🎖️ Each badge +50\n❄️ Every 7-day streak earns a streak freeze (max 2)\n🛑 Runs faster than 2:30/km on average don’t count'}
-          </Text>
+        <SectionLabel>How XP works</SectionLabel>
+        <Card style={{ paddingVertical: 4 }}>
+          {XP_RULES.map(([k, v], i) => (
+            <View key={k} style={[s.bdRow, i === XP_RULES.length - 1 && { borderBottomWidth: 0 }]}>
+              <Text style={s.bdTxt}>{k}</Text>
+              <Text style={[s.bdVal, num]}>{v}</Text>
+            </View>
+          ))}
         </Card>
 
-        <Text style={s.sec}>🧪 Tester tools</Text>
+        <SectionLabel>Tester tools</SectionLabel>
         <Card>
-          <Text style={[s.sub, { marginBottom: 10 }]}>Add a fake 3–9 km run starting where you are, to test levels, badges and tiles indoors. Test runs are marked 🧪.</Text>
+          <Text style={[s.sub, { marginTop: 0, marginBottom: 12 }]}>Adds a fake 3–9 km run starting where you are, to test levels, badges and tiles indoors. Test runs are marked Test in History.</Text>
           <View style={s.row}>
             <Btn title="Add test run" kind="ghost" onPress={testRun} style={{ flex: 1 }} />
             <Btn title="Reset all" kind="ghost" onPress={confirmReset} style={{ flex: 1 }} />
