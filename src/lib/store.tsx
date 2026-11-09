@@ -146,8 +146,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (r.added) {
       persist(r.state);
       if (userRef.current) {
-        const fresh = r.state.runs.filter((x) => !before.has(x.id)).map((x) => cloud.toRow(toInput(x)));
-        cloud.uploadRuns(fresh).then(() => pushStats(r.state)).catch(() => setSync('error'));
+        const freshRuns = r.state.runs.filter((x) => !before.has(x.id));
+        const fresh = freshRuns.map((x) => cloud.toRow({ ...toInput(x), xp: x.xp } as any));
+        cloud.uploadRuns(fresh)
+          .then(() => {
+            pushStats(r.state);
+            // Watch runs from Apple Health in the last 3 days also go to friends' feeds
+            const recent = freshRuns.filter((x) => x.source === 'health' && !x.flagged && x.startedAt > Date.now() - 3 * 86_400_000);
+            return postActivities(recent.map((x) => ({ kind: 'run' as const, run_client_id: x.id, data: { km: x.km, xp: x.xp, duration_sec: x.durationSec, via: 'watch' } })));
+          })
+          .catch(() => setSync('error'));
       }
     }
     return { added: r.added, xpGained: r.xpGained };

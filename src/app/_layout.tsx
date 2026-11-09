@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router/js-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import AuthScreen from '../components/AuthScreen';
+import HealthSync from '../components/HealthSync';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, Icon, IconName } from '../components/ui';
@@ -37,6 +38,7 @@ export default function RootLayout() {
           <Tabs.Screen name="progress" options={{ title: 'Progress', tabBarIcon: icon('award') }} />
           <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('user') }} />
         </Tabs>
+        <HealthSync />
         <AuthGate />
       </StoreProvider>
       </AuthProvider>

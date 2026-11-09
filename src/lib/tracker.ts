@@ -47,7 +47,9 @@ export function snapshot(): TrackerSnapshot {
   const seg = S.segmentStart ? Date.now() - S.segmentStart : 0;
   return {
     status: S.status, mode: S.mode, distanceM: S.distanceM, elapsedSec: (S.activeMs + seg) / 1000,
-    route: S.route, current: S.current, gpsAccuracy: S.accuracy,
+    // Copies: React Native freezes whatever is passed to the map in development,
+    // so the tracker must never hand out its own working arrays/objects.
+    route: S.route.slice(), current: S.current ? { ...S.current } : null, gpsAccuracy: S.accuracy,
   };
 }
 const emit = () => { const snap = snapshot(); listeners.forEach((l) => l(snap)); };
@@ -57,16 +59,17 @@ function handle(locs: Location.LocationObject[]) {
   for (const l of locs) {
     const p = { latitude: l.coords.latitude, longitude: l.coords.longitude };
     const acc = l.coords.accuracy ?? 999;
-    S.current = p; S.accuracy = acc;
+    S.current = { ...p }; S.accuracy = acc;
     if (S.status !== 'running' || acc > MAX_ACCURACY_M) continue;
-    if (!S.last) { S.last = { p, t: l.timestamp }; S.route.push(p); continue; }
+    if (!S.last) { const pt = { ...p }; S.last = { p: pt, t: l.timestamp }; S.route.push(pt); continue; }
     const d = distanceM(S.last.p, p);
     const dt = Math.max(0.5, (l.timestamp - S.last.t) / 1000);
     if (d < MIN_STEP_M) continue;
     if (d / dt > MAX_SPEED_MS) { S.last = { p, t: l.timestamp }; continue; } // jump: re-anchor, don't count
-    S.distanceM += d;
-    S.route.push(p);
-    S.last = { p, t: l.timestamp };
+    const pt = { latitude: p.latitude, longitude: p.longitude };
+    S.route.push(pt);
+    S.last = { p: pt, t: l.timestamp };
+    S.distanceM += d; // counted only after the point is safely stored
   }
   emit();
 }

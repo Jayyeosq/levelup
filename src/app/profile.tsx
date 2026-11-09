@@ -7,6 +7,8 @@ import { TOWNS } from '../lib/geo';
 import { useAuth } from '../lib/auth';
 import { useStore } from '../lib/store';
 import * as strava from '../lib/strava';
+import * as health from '../lib/health';
+import { Platform } from 'react-native';
 
 const AVATARS = ['🏃', '🏃‍♀️', '🦊', '🐯', '🦁', '🐺', '🐼', '🦅', '🐉', '⚡', '🔥', '🚀'];
 const STRAVA_ORANGE = '#FC4C02';
@@ -18,6 +20,35 @@ export default function ProfileScreen() {
   const { email, signOut } = useAuth();
   const [townsOpen, setTownsOpen] = useState(false);
   const L = levelOf(state.xp);
+
+  // ---- Apple Health ----
+  const hSupported = health.healthSupported();
+  const [hConnected, setHConnected] = useState(false);
+  const [hLast, setHLast] = useState<number | null>(null);
+  const [consentOpen, setConsentOpen] = useState(false);
+  useEffect(() => { health.isConnected().then(setHConnected); health.lastSync().then(setHLast); }, []);
+
+  const healthImport = async (days: number) => {
+    setBusy('Reading runs from Apple Health…');
+    try {
+      const { runs, skippedStrava } = await health.fetchRuns(days);
+      const r = importRuns(runs);
+      setHLast(Date.now());
+      Alert.alert('Apple Health synced',
+        (r.added ? `Imported ${r.added} run${r.added > 1 ? 's' : ''} · +${r.xpGained.toLocaleString()} XP.` : 'No new runs.') +
+        (skippedStrava ? ` Skipped ${skippedStrava} recorded by Strava.` : ''));
+    } catch (e: any) { Alert.alert('Could not read Apple Health', e?.message ?? String(e)); }
+    finally { setBusy(null); }
+  };
+  const healthConnect = async () => {
+    setConsentOpen(false);
+    try { await health.connect(); setHConnected(true); await healthImport(90); }
+    catch (e: any) { Alert.alert('Could not connect', e?.message ?? String(e)); }
+  };
+  const healthDisconnect = () => Alert.alert('Disconnect Apple Health?', 'Runs already imported stay. To remove access fully, go to iPhone Settings → Health → Data Access & Devices → LevelUp+.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Disconnect', style: 'destructive', onPress: async () => { await health.disconnect(); setHConnected(false); setHLast(null); } },
+  ]);
 
   // ---- Strava ----
   const [tokens, setTokens] = useState<strava.StravaTokens | null>(null);
@@ -112,6 +143,39 @@ export default function ProfileScreen() {
           ])} />
         </Card>
 
+        {/* Apple Health */}
+        <SectionLabel>Apple Health</SectionLabel>
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#FF2D55', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="heart" size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.txt, { fontWeight: '600' }]}>{hConnected ? 'Connected' : 'Use your watch runs'}</Text>
+              <Text style={[s.sub, { marginTop: 0 }]}>
+                {hConnected
+                  ? `New runs sync automatically${hLast ? ` · last synced ${new Date(hLast).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}`
+                  : 'Apple Watch, Garmin, Coros and more. These runs count on the Battle map and leaderboards.'}
+              </Text>
+            </View>
+          </View>
+          {Platform.OS !== 'ios' ? (
+            <Text style={s.sub}>Android (Health Connect) is coming soon.</Text>
+          ) : !hSupported ? (
+            <Text style={s.sub}>Apple Health works in the LevelUp+ app build, not inside Expo Go.</Text>
+          ) : hConnected ? (
+            <>
+              <View style={s.row}>
+                <Btn title="Sync now" kind="ghost" icon="refresh-cw" onPress={() => healthImport(30)} style={{ flex: 1 }} />
+                <Btn title="Last 90 days" kind="ghost" onPress={() => healthImport(90)} style={{ flex: 1 }} />
+              </View>
+              <Pressable onPress={healthDisconnect}><Text style={[s.sub, { marginTop: 12, textAlign: 'center' }]}>Disconnect Apple Health</Text></Pressable>
+            </>
+          ) : (
+            <Btn title="Connect Apple Health" icon="heart" onPress={() => setConsentOpen(true)} />
+          )}
+        </Card>
+
         {/* Strava */}
         <SectionLabel>Strava</SectionLabel>
         <Card>
@@ -123,7 +187,7 @@ export default function ProfileScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[s.txt, { fontWeight: '500' }]}>Strava</Text>
-                  <Text style={s.sub}>Import your runs and earn XP for them. You can disconnect any time.</Text>
+                  <Text style={s.sub}>Import past runs for personal XP and badges. Strava runs don't count on the Battle map or leaderboards.</Text>
                 </View>
               </View>
               <Btn title="Connect with Strava" onPress={doConnect} style={{ backgroundColor: STRAVA_ORANGE }} />
@@ -177,6 +241,30 @@ export default function ProfileScreen() {
         </View>
       </Modal>
 
+      {/* Apple Health consent */}
+      <Modal visible={consentOpen} animationType="slide" transparent onRequestClose={() => setConsentOpen(false)}>
+        <View style={s.ov}>
+          <View style={s.sheet}>
+            <Text style={[s.title, { marginBottom: 8 }]}>Share your runs from Apple Health</Text>
+            <Text style={[s.txt, { marginBottom: 12, color: C.sec }]}>LevelUp+ will read your running workouts (date, time, distance and GPS route) from Apple Health.</Text>
+            {([
+              ['map', 'Your runs claim tiles on the shared Battle map, which other runners can see.'],
+              ['bar-chart-2', 'Your XP counts on the weekly leaderboards.'],
+              ['users', 'Recent runs appear in your friends\' feed.'],
+              ['lock', 'Your exact routes stay private. Tiles near where you start and finish are hidden.'],
+              ['slash', 'Runs recorded by Strava are skipped, and your health data is never sold or used for ads.'],
+            ] as const).map(([ic, t]) => (
+              <View key={t} style={{ flexDirection: 'row', gap: 12, marginBottom: 10 }}>
+                <Icon name={ic} size={16} color={C.acc} />
+                <Text style={[s.sub, { marginTop: 0, flex: 1, color: C.txt }]}>{t}</Text>
+              </View>
+            ))}
+            <Text style={[s.sub, { marginBottom: 16 }]}>You can disconnect any time here, or in iPhone Settings → Health.</Text>
+            <Btn title="Agree and connect" onPress={healthConnect} />
+            <Btn title="Not now" kind="ghost" onPress={() => setConsentOpen(false)} style={{ marginTop: 8 }} />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

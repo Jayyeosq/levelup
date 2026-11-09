@@ -8,7 +8,7 @@ export type CloudProfile = { username: string; avatar: string; home_town: string
 
 type RunRow = {
   client_id: string; started_at: string; duration_sec: number; km: number | string;
-  route: any; tiles: any; source: 'app' | 'strava' | 'test'; strava_id: number | null; xp?: number | null;
+  route: any; tiles: any; source: 'app' | 'strava' | 'test' | 'health'; strava_id: number | null; xp?: number | null;
 };
 
 export const toRow = (r: Run | (RunInput & { id: string })): RunRow => ({

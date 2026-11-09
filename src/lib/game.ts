@@ -19,7 +19,7 @@ export type Run = {
   early: boolean;
   flagged?: string;
   test?: boolean;
-  source?: 'app' | 'strava' | 'test';
+  source?: 'app' | 'strava' | 'test' | 'health';
   stravaId?: number;
 };
 
@@ -119,7 +119,7 @@ export const fmtPace = (minPerKm: number) => {
 // ---------- the main rule: turning a run into XP ----------
 export type RunInput = {
   startedAt: number; durationSec: number; km: number; route: LatLng[]; tiles: Record<string, number>;
-  test?: boolean; source?: 'app' | 'strava' | 'test'; stravaId?: number;
+  test?: boolean; source?: 'app' | 'strava' | 'test' | 'health'; stravaId?: number;
 };
 export type RunResult = {
   run: Run; levelBefore: number; levelAfter: number; titleBefore: string; titleAfter: string;
@@ -243,7 +243,13 @@ export function deleteRun(prev: GameState, runId: string): GameState {
 export function importRuns(prev: GameState, inputs: RunInput[]): { state: GameState; added: number; xpGained: number } {
   const have = new Set(prev.runs.map((r) => r.stravaId).filter(Boolean));
   const haveStart = new Set(prev.runs.map((r) => Math.round(r.startedAt / 60000)));
-  const fresh = inputs.filter((i) => !(i.stravaId && have.has(i.stravaId)) && !haveStart.has(Math.round(i.startedAt / 60000)));
+  // Same run recorded twice (e.g. phone GPS + watch, or watch + Strava): skip if it overlaps an existing run by over half.
+  const spans = prev.runs.map((r) => [r.startedAt, r.startedAt + r.durationSec * 1000] as const);
+  const overlaps = (i: RunInput) => {
+    const a = i.startedAt, b = i.startedAt + i.durationSec * 1000;
+    return spans.some(([c, d]) => Math.min(b, d) - Math.max(a, c) > 0.5 * Math.min(b - a, d - c));
+  };
+  const fresh = inputs.filter((i) => !(i.stravaId && have.has(i.stravaId)) && !haveStart.has(Math.round(i.startedAt / 60000)) && !overlaps(i));
   if (!fresh.length) return { state: prev, added: 0, xpGained: 0 };
   const state = rebuild([...prev.runs.map(toInput), ...fresh]);
   return { state, added: fresh.length, xpGained: state.xp - prev.xp };

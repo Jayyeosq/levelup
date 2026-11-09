@@ -36,7 +36,16 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
         }
-      ]
+      ],
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "LevelUp+ reads your running workouts (distance, time and route) to award XP, claim map tiles and rank you on leaderboards.",
+          "NSHealthUpdateUsageDescription": false,
+          "background": false
+        }
+      ],
+      "expo-dev-client"
     ],
     "extra": {
       "stravaAuthServer": "https://xmaioptoygjbcrwhszkk.supabase.co/functions/v1/strava-auth",
