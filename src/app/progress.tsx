@@ -1,5 +1,6 @@
-import { router } from 'expo-router';
+import { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
+import HistoryModal from '../components/HistoryModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BadgeHex, Btn, C, Card, Icon, LevelHeader, num, ResultModal, s, SectionLabel } from '../components/ui';
 import { BADGES, levelOf, TITLES, xpForLevel } from '../lib/game';
@@ -20,6 +21,7 @@ const XP_RULES: [string, string][] = [
 ];
 
 export default function Progress() {
+  const [historyOpen, setHistoryOpen] = useState(false);
   const { state, addRun, reset, lastResult, clearResult } = useStore();
   const L = levelOf(state.xp);
   const got = Object.keys(state.badges).length;
@@ -38,7 +40,7 @@ export default function Progress() {
     <SafeAreaView edges={['top']} style={s.screen}>
       <ScrollView contentContainerStyle={s.pad}>
         <LevelHeader xp={state.xp} />
-        <Btn title={`Run history · ${state.runs.length} runs`} kind="ghost" icon="list" onPress={() => router.navigate('/history')} style={{ marginBottom: 4 }} />
+        <Btn title={`Run history · ${state.runs.length} runs`} kind="ghost" icon="list" onPress={() => setHistoryOpen(true)} style={{ marginBottom: 4 }} />
 
         <SectionLabel>Badges · {got} of {BADGES.length}</SectionLabel>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -89,6 +91,7 @@ export default function Progress() {
         </Card>
       </ScrollView>
       <ResultModal result={lastResult} onClose={clearResult} />
+      <HistoryModal visible={historyOpen} onClose={() => setHistoryOpen(false)} />
     </SafeAreaView>
   );
 }
