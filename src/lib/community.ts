@@ -64,7 +64,7 @@ export type Activity = {
 
 export async function fetchFeed(): Promise<Activity[]> {
   const { data, error } = await supabase.from('activities')
-    .select('id, user_id, kind, data, created_at, profiles(username, avatar), kudos(user_id)')
+    .select('id, user_id, kind, data, created_at, profiles!activities_user_id_fkey(username, avatar), kudos(user_id)')
     .order('created_at', { ascending: false }).limit(60);
   if (error) throw error;
   return (data ?? []) as unknown as Activity[];
