@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth';
 import * as cloud from './cloud';
+import { deleteActivitiesForRun, deleteAllMyActivities, postActivities } from './community';
 import { deleteRun, GameState, importRuns, levelOf, newState, processRun, rebuild, Run, RunInput, RunResult } from './game';
 import { distanceM, kmPerTile, LatLng, simplify } from './geo';
 
@@ -121,7 +122,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     persist(s);
     setLastResult(result);
     if (userRef.current) {
-      cloud.uploadRuns([cloud.toRow(result.run)]).then(() => pushStats(s)).catch(() => setSync('error'));
+      cloud.uploadRuns([cloud.toRow(result.run)])
+        .then(() => {
+          pushStats(s);
+          // Share to friends' feeds (never the route; never Strava-imported runs)
+          const run = result.run;
+          if (run.flagged || run.source === 'strava') return;
+          const posts: Parameters<typeof postActivities>[0] = [
+            { kind: 'run', run_client_id: run.id, data: { km: run.km, xp: run.xp, duration_sec: run.durationSec, test: !!run.test } },
+          ];
+          if (result.levelAfter > result.levelBefore) posts.push({ kind: 'level_up', run_client_id: run.id, data: { level: result.levelAfter, title: result.titleAfter } });
+          for (const b of result.newBadges) posts.push({ kind: 'badge', run_client_id: run.id, data: { badge_id: b.id, name: b.name } });
+          return postActivities(posts);
+        })
+        .catch(() => setSync('error'));
     }
     return result;
   }, [persist, pushStats]);
@@ -158,14 +172,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const removeRun = useCallback((id: string) => {
     const s = deleteRun(stateRef.current, id);
     persist(s);
-    if (userRef.current) cloud.deleteRunCloud(id).then(() => pushStats(s)).catch(() => setSync('error'));
+    if (userRef.current) cloud.deleteRunCloud(id).then(() => { pushStats(s); return deleteActivitiesForRun(id); }).catch(() => setSync('error'));
   }, [persist, pushStats]);
 
   const reset = useCallback(() => {
     const s = newState();
     persist(s);
     const uid = userRef.current;
-    if (uid) cloud.deleteAllRunsCloud(uid).then(() => pushStats(s)).catch(() => setSync('error'));
+    if (uid) cloud.deleteAllRunsCloud(uid).then(() => { pushStats(s); return deleteAllMyActivities(uid); }).catch(() => setSync('error'));
   }, [persist, pushStats]);
 
   const value = useMemo<Ctx>(() => ({

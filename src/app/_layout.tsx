@@ -33,8 +33,9 @@ export default function RootLayout() {
         >
           <Tabs.Screen name="index" options={{ title: 'Run', tabBarIcon: icon('activity') }} />
           <Tabs.Screen name="territory" options={{ title: 'Territory', tabBarIcon: icon('map') }} />
+          <Tabs.Screen name="community" options={{ title: 'Community', tabBarIcon: icon('users') }} />
           <Tabs.Screen name="progress" options={{ title: 'Progress', tabBarIcon: icon('award') }} />
-          <Tabs.Screen name="history" options={{ title: 'History', tabBarIcon: icon('list') }} />
+          <Tabs.Screen name="history" options={{ title: 'History', href: null }} />
           <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('user') }} />
         </Tabs>
         <AuthGate />

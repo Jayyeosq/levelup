@@ -41,7 +41,7 @@
     "extra": {
       "stravaAuthServer": "https://xmaioptoygjbcrwhszkk.supabase.co/functions/v1/strava-auth",
       "supabaseUrl": "https://xmaioptoygjbcrwhszkk.supabase.co",
-      "supabaseKey": ""
+      "supabaseKey": "sb_publishable_vQdKtCOucFDtPJrHH_hsOw_sCbjSzmC"
     }
   }
 }

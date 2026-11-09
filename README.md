@@ -40,6 +40,7 @@ The laptop only needs to be on while you load the app. After it opens, you can t
 - **Anti-cheat:** GPS jumps are ignored, and a run that averages faster than 2:30/km doesn't count.
 - **History:** long-press a run to delete it. XP, streaks and tiles are then recalculated.
 - **Accounts:** sign up with email + username + password; log in with email **or** username. Other runners only ever see your username. Runs and profile sync to your account (setup: **ACCOUNTS_SETUP.md**).
+- **Community tab:** add friends by username, a feed of friends' runs, level-ups and badges with kudos, and a weekly XP leaderboard (Friends / My town / All Singapore, resets Monday). Setup: run `supabase/migrations/0002_community.sql` in the Supabase SQL Editor.
 - **Profile tab:** set your name, avatar, home town and a weekly km goal. Progress toward the goal shows on the Run tab.
 - **Connect with Strava** (Profile tab): one tap → Strava login → Authorize → back in the app. Then import your runs from the last 30 days, 90 days or 1 year. They earn XP, badges and tiles like normal, and no run is ever imported twice. One-time developer setup: see **STRAVA_SETUP.md**.
 - **Tester tools** (on the Progress tab): add a fake run near you to test indoors, or reset everything.
@@ -65,7 +66,8 @@ src/app/                 screens (Expo Router: one file = one tab)
   index.tsx              Run tab (start/track/finish)
   territory.tsx          Territory map
   progress.tsx           Level, badges, titles, tester tools
-  history.tsx            Past runs
+  community.tsx          Feed, weekly leaderboard, friends
+  history.tsx            Past runs (opened from Progress)
   profile.tsx            Profile + Strava connection
 src/lib/
   game.ts                all game rules (XP, levels, badges, streaks, tiles)

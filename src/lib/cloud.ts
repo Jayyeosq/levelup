@@ -8,7 +8,7 @@ export type CloudProfile = { username: string; avatar: string; home_town: string
 
 type RunRow = {
   client_id: string; started_at: string; duration_sec: number; km: number | string;
-  route: any; tiles: any; source: 'app' | 'strava' | 'test'; strava_id: number | null;
+  route: any; tiles: any; source: 'app' | 'strava' | 'test'; strava_id: number | null; xp?: number | null;
 };
 
 export const toRow = (r: Run | (RunInput & { id: string })): RunRow => ({
@@ -20,6 +20,7 @@ export const toRow = (r: Run | (RunInput & { id: string })): RunRow => ({
   tiles: r.tiles ?? {},
   source: r.source ?? (r.test ? 'test' : 'app'),
   strava_id: r.stravaId ?? null,
+  xp: 'xp' in r && typeof (r as Run).xp === 'number' ? (r as Run).xp : null,
 });
 
 export const fromRow = (row: RunRow): RunInput => ({

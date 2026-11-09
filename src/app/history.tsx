@@ -1,6 +1,7 @@
+import { router } from 'expo-router';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { C, num, s } from '../components/ui';
+import { C, Icon, num, s } from '../components/ui';
 import { fmtPace } from '../lib/game';
 import { useStore } from '../lib/store';
 
@@ -22,6 +23,10 @@ export default function History() {
         contentContainerStyle={s.pad}
         ListHeaderComponent={
           <View style={{ marginBottom: 16 }}>
+            <Pressable onPress={() => router.navigate('/progress')} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+              <Icon name="chevron-left" size={18} color={C.acc} />
+              <Text style={{ color: C.acc, fontWeight: '500' }}>Progress</Text>
+            </Pressable>
             <Text style={s.title}>History</Text>
             <Text style={[s.sub, num]}>{state.runs.length} runs · {total.toFixed(1)} km total · long-press a run to delete it</Text>
           </View>

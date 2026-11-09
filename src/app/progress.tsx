@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BadgeHex, Btn, C, Card, Icon, LevelHeader, num, ResultModal, s, SectionLabel } from '../components/ui';
@@ -37,6 +38,7 @@ export default function Progress() {
     <SafeAreaView edges={['top']} style={s.screen}>
       <ScrollView contentContainerStyle={s.pad}>
         <LevelHeader xp={state.xp} />
+        <Btn title={`Run history · ${state.runs.length} runs`} kind="ghost" icon="list" onPress={() => router.navigate('/history')} style={{ marginBottom: 4 }} />
 
         <SectionLabel>Badges · {got} of {BADGES.length}</SectionLabel>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
