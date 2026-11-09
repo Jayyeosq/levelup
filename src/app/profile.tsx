@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn, C, Card, Icon, s, SectionLabel } from '../components/ui';
 import { levelOf, titleOf } from '../lib/game';
 import { TOWNS } from '../lib/geo';
+import { useAuth } from '../lib/auth';
 import { useStore } from '../lib/store';
 import * as strava from '../lib/strava';
 
@@ -13,7 +14,8 @@ const STRAVA_ORANGE = '#FC4C02';
 const input = { backgroundColor: C.card2, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 12, color: C.txt, fontSize: 15 } as const;
 
 export default function ProfileScreen() {
-  const { profile, setProfile, state, importRuns } = useStore();
+  const { profile, setProfile, state, importRuns, sync, resync } = useStore();
+  const { email, signOut } = useAuth();
   const [townsOpen, setTownsOpen] = useState(false);
   const L = levelOf(state.xp);
 
@@ -58,14 +60,14 @@ export default function ProfileScreen() {
         {/* Identity */}
         <View style={{ alignItems: 'center', marginBottom: 8 }}>
           <Text style={{ fontSize: 64 }}>{profile.avatar}</Text>
-          <Text style={[s.title, { marginTop: 4 }]}>{profile.name || 'Runner'}</Text>
+          <Text style={[s.title, { marginTop: 4 }]}>@{profile.name || 'runner'}</Text>
           <Text style={s.sub}>Level {L} · {titleOf(L)}{profile.homeTown ? ` · ${profile.homeTown}` : ''}</Text>
         </View>
 
         <SectionLabel>Profile</SectionLabel>
         <Card>
-          <Text style={[s.sub, { marginTop: 0, marginBottom: 8 }]}>Display name</Text>
-          <TextInput value={profile.name} onChangeText={(name) => setProfile({ name })} placeholder="e.g. Jay" placeholderTextColor={C.mut} style={input} maxLength={24} />
+          <Text style={[s.sub, { marginTop: 0, marginBottom: 8 }]}>Username (public)</Text>
+          <View style={[input, { opacity: 0.8 }]}><Text style={{ color: C.txt, fontSize: 15 }}>@{profile.name || '…'}</Text></View>
 
           <Text style={[s.sub, { marginTop: 16, marginBottom: 8 }]}>Avatar</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -88,6 +90,26 @@ export default function ProfileScreen() {
             <Text style={[s.title, { flex: 1, textAlign: 'center' }]}>{profile.weeklyGoalKm} km</Text>
             <Btn title="+" kind="ghost" onPress={() => setProfile({ weeklyGoalKm: Math.min(150, profile.weeklyGoalKm + 5) })} style={{ width: 56 }} />
           </View>
+        </Card>
+
+        {/* Account */}
+        <SectionLabel>Account</SectionLabel>
+        <Card>
+          <Text style={[s.sub, { marginTop: 0 }]}>Logged in as</Text>
+          <Text style={[s.txt, { fontWeight: '600', marginBottom: 8 }]}>{email}</Text>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+            <Icon name="lock" size={14} color={C.mut} />
+            <Text style={[s.sub, { marginTop: 0, fontSize: 12, flex: 1 }]}>Only you can see your email. Others see @{profile.name}.</Text>
+          </View>
+          <Pressable onPress={resync} style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+            <Icon name={sync === 'error' ? 'alert-triangle' : sync === 'synced' ? 'check-circle' : 'cloud'} size={14} color={sync === 'error' ? C.bad : sync === 'synced' ? C.good : C.mut} />
+            <Text style={[s.sub, { marginTop: 0 }]}>
+              {sync === 'synced' ? 'All runs saved to your account' : sync === 'syncing' ? 'Syncing…' : sync === 'error' ? 'Couldn’t sync. Tap to retry' : 'Not synced'}
+            </Text>
+          </Pressable>
+          <Btn title="Log out" kind="ghost" icon="log-out" onPress={() => Alert.alert('Log out?', 'Your runs are saved in your account.', [
+            { text: 'Cancel', style: 'cancel' }, { text: 'Log out', style: 'destructive', onPress: signOut },
+          ])} />
         </Card>
 
         {/* Strava */}

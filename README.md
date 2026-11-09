@@ -39,6 +39,7 @@ The laptop only needs to be on while you load the app. After it opens, you can t
 - **Territory:** Singapore is split into hexes about 170 m wide, and every hex you run through is yours for 30 days. The app shows which towns you hold the most tiles in.
 - **Anti-cheat:** GPS jumps are ignored, and a run that averages faster than 2:30/km doesn't count.
 - **History:** long-press a run to delete it. XP, streaks and tiles are then recalculated.
+- **Accounts:** sign up with email + username + password; log in with email **or** username. Other runners only ever see your username. Runs and profile sync to your account (setup: **ACCOUNTS_SETUP.md**).
 - **Profile tab:** set your name, avatar, home town and a weekly km goal. Progress toward the goal shows on the Run tab.
 - **Connect with Strava** (Profile tab): one tap → Strava login → Authorize → back in the app. Then import your runs from the last 30 days, 90 days or 1 year. They earn XP, badges and tiles like normal, and no run is ever imported twice. One-time developer setup: see **STRAVA_SETUP.md**.
 - **Tester tools** (on the Progress tab): add a fake run near you to test indoors, or reset everything.
@@ -73,6 +74,9 @@ src/lib/
   store.tsx              saving data on the phone
   strava.ts              Strava login + run import
 supabase/functions/strava-auth/   small login server that keeps the Strava secret safe
+supabase/functions/auth-login/    username login (keeps emails private)
+supabase/migrations/              database tables + privacy rules
+src/lib/auth.tsx, cloud.ts        accounts + cloud sync
 src/components/ui.tsx    shared UI pieces and colours
 ```
 

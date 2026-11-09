@@ -28,7 +28,7 @@ export default function Progress() {
     addRun(makeTestRun(pos));
   };
   const confirmReset = () =>
-    Alert.alert('Reset everything?', 'Deletes all runs, XP, badges and tiles on this phone.', [
+    Alert.alert('Reset everything?', 'Deletes all your runs, XP, badges and tiles — on this phone and in your account.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Reset', style: 'destructive', onPress: reset },
     ]);
