@@ -66,7 +66,7 @@ const toSec = (q: { quantity: number; unit: string } | undefined, start: Date, e
   return (end.getTime() - start.getTime()) / 1000;
 };
 
-export type HealthFetch = { runs: RunInput[]; skippedStrava: number };
+export type HealthFetch = { runs: RunInput[]; skippedStrava: number; found: number; sources: string[] };
 
 /** Running workouts from the last `days` days, converted to LevelUp+ runs. */
 export async function fetchRuns(days: number): Promise<HealthFetch> {
@@ -79,9 +79,11 @@ export async function fetchRuns(days: number): Promise<HealthFetch> {
   });
   const runs: RunInput[] = [];
   let skippedStrava = 0;
+  const sources = new Set<string>();
   for (const w of workouts) {
     const bundle: string = w.sourceRevision?.source?.bundleIdentifier ?? '';
     const name: string = w.sourceRevision?.source?.name ?? '';
+    if (name) sources.add(name);
     if (/strava/i.test(bundle) || /strava/i.test(name)) { skippedStrava++; continue; }
     const start = new Date(w.startDate), end = new Date(w.endDate);
     const km = toKm(w.totalDistance);
@@ -101,5 +103,5 @@ export async function fetchRuns(days: number): Promise<HealthFetch> {
     });
   }
   await AsyncStorage.setItem(LAST_SYNC_KEY, String(Date.now()));
-  return { runs, skippedStrava };
+  return { runs, skippedStrava, found: workouts.length, sources: [...sources] };
 }

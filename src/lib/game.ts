@@ -240,17 +240,36 @@ export function deleteRun(prev: GameState, runId: string): GameState {
 }
 
 /** Adds imported runs (skipping ones already present) and replays history. */
-export function importRuns(prev: GameState, inputs: RunInput[]): { state: GameState; added: number; xpGained: number } {
-  const have = new Set(prev.runs.map((r) => r.stravaId).filter(Boolean));
-  const haveStart = new Set(prev.runs.map((r) => Math.round(r.startedAt / 60000)));
-  // Same run recorded twice (e.g. phone GPS + watch, or watch + Strava): skip if it overlaps an existing run by over half.
-  const spans = prev.runs.map((r) => [r.startedAt, r.startedAt + r.durationSec * 1000] as const);
-  const overlaps = (i: RunInput) => {
-    const a = i.startedAt, b = i.startedAt + i.durationSec * 1000;
-    return spans.some(([c, d]) => Math.min(b, d) - Math.max(a, c) > 0.5 * Math.min(b - a, d - c));
-  };
-  const fresh = inputs.filter((i) => !(i.stravaId && have.has(i.stravaId)) && !haveStart.has(Math.round(i.startedAt / 60000)) && !overlaps(i));
-  if (!fresh.length) return { state: prev, added: 0, xpGained: 0 };
-  const state = rebuild([...prev.runs.map(toInput), ...fresh]);
-  return { state, added: fresh.length, xpGained: state.xp - prev.xp };
+export type ImportResult = { state: GameState; added: number; upgraded: number; replaced: string[]; duplicates: number; xpGained: number };
+
+/**
+ * Adds imported runs and replays history.
+ * - Same run twice (overlapping by over half its time): counted once.
+ * - If a watch/Health run matches a run imported from Strava, the Strava copy is
+ *   REPLACED, so the run can count on the Battle map and leaderboards.
+ */
+export function importRuns(prev: GameState, inputs: RunInput[]): ImportResult {
+  const haveStrava = new Set(prev.runs.map((r) => r.stravaId).filter(Boolean));
+  const overlapRatio = (a0: number, a1: number, b0: number, b1: number) =>
+    (Math.min(a1, b1) - Math.max(a0, b0)) / Math.max(1, Math.min(a1 - a0, b1 - b0));
+  const replaced = new Set<string>();
+  const fresh: RunInput[] = [];
+  let duplicates = 0, upgraded = 0;
+  for (const i of inputs) {
+    if (i.stravaId && haveStrava.has(i.stravaId)) { duplicates++; continue; }
+    const a0 = i.startedAt, a1 = i.startedAt + i.durationSec * 1000;
+    const same = prev.runs.filter((r) =>
+      Math.round(r.startedAt / 60000) === Math.round(a0 / 60000) ||
+      overlapRatio(a0, a1, r.startedAt, r.startedAt + r.durationSec * 1000) > 0.5);
+    const alsoNew = fresh.some((f) => overlapRatio(a0, a1, f.startedAt, f.startedAt + f.durationSec * 1000) > 0.5);
+    if (alsoNew) { duplicates++; continue; }
+    if (!same.length) { fresh.push(i); continue; }
+    const upgrade = i.source !== 'strava' && same.every((r) => r.source === 'strava');
+    if (upgrade) { same.forEach((r) => replaced.add(r.id)); fresh.push(i); upgraded++; }
+    else duplicates++;
+  }
+  if (!fresh.length) return { state: prev, added: 0, upgraded: 0, replaced: [], duplicates, xpGained: 0 };
+  const keep = prev.runs.filter((r) => !replaced.has(r.id)).map(toInput);
+  const state = rebuild([...keep, ...fresh]);
+  return { state, added: fresh.length - upgraded, upgraded, replaced: [...replaced], duplicates, xpGained: state.xp - prev.xp };
 }

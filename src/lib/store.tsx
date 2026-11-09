@@ -22,7 +22,7 @@ type Ctx = {
   state: GameState;
   lastResult: RunResult | null;
   addRun: (r: RunInput) => RunResult;
-  importRuns: (rs: RunInput[]) => { added: number; xpGained: number };
+  importRuns: (rs: RunInput[]) => { added: number; upgraded: number; duplicates: number; xpGained: number };
   profile: Profile;
   setProfile: (p: Partial<Profile>) => void;
   removeRun: (id: string) => void;
@@ -143,12 +143,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const doImport = useCallback((rs: RunInput[]) => {
     const before = new Set(stateRef.current.runs.map((r) => r.id));
     const r = importRuns(stateRef.current, rs);
-    if (r.added) {
+    if (r.added || r.upgraded) {
       persist(r.state);
       if (userRef.current) {
-        const freshRuns = r.state.runs.filter((x) => !before.has(x.id));
+        const replaced = new Set(r.replaced);
+        const freshRuns = r.state.runs.filter((x) => !before.has(x.id) || replaced.has(x.id));
         const fresh = freshRuns.map((x) => cloud.toRow({ ...toInput(x), xp: x.xp } as any));
-        cloud.uploadRuns(fresh)
+        // Remove the Strava copies that were replaced first, then upload the new runs.
+        Promise.all(r.replaced.map((id) => cloud.deleteRunCloud(id)))
+          .then(() => cloud.uploadRuns(fresh))
           .then(() => {
             pushStats(r.state);
             // Watch runs from Apple Health in the last 3 days also go to friends' feeds
@@ -158,7 +161,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           .catch(() => setSync('error'));
       }
     }
-    return { added: r.added, xpGained: r.xpGained };
+    return { added: r.added, upgraded: r.upgraded, duplicates: r.duplicates, xpGained: r.xpGained };
   }, [persist, pushStats]);
 
   const setProfile = useCallback((p: Partial<Profile>) => {

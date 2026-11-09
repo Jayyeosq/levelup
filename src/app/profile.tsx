@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn, C, Card, Icon, s, SectionLabel } from '../components/ui';
@@ -31,19 +31,51 @@ export default function ProfileScreen() {
   const healthImport = async (days: number) => {
     setBusy('Reading runs from Apple Health…');
     try {
-      const { runs, skippedStrava } = await health.fetchRuns(days);
+      const { runs, skippedStrava, found, sources } = await health.fetchRuns(days);
       const r = importRuns(runs);
       setHLast(Date.now());
-      Alert.alert('Apple Health synced',
-        (r.added ? `Imported ${r.added} run${r.added > 1 ? 's' : ''} · +${r.xpGained.toLocaleString()} XP.` : 'No new runs.') +
-        (skippedStrava ? ` Skipped ${skippedStrava} recorded by Strava.` : ''));
+      const lines: string[] = [];
+      if (!found) {
+        lines.push(`No running workouts found in Apple Health for the last ${days} days.`,
+          'If you use Garmin, Coros or another watch, turn on Apple Health syncing in that watch\'s app. If you track runs with Strava only, those can\'t be used here.');
+      } else {
+        lines.push(`Found ${found} run${found > 1 ? 's' : ''} in Apple Health${sources.length ? ` (from ${sources.slice(0, 3).join(', ')})` : ''}.`);
+        if (r.added) lines.push(`${r.added} new run${r.added > 1 ? 's' : ''} added.`);
+        if (r.upgraded) lines.push(`${r.upgraded} replaced your Strava copies, so they now count on the Battle map and leaderboards.`);
+        if (r.duplicates) lines.push(`${r.duplicates} already in LevelUp+.`);
+        if (skippedStrava) lines.push(`${skippedStrava} recorded by Strava were skipped.`);
+        if (r.xpGained > 0) lines.push(`+${r.xpGained.toLocaleString()} XP`);
+      }
+      Alert.alert('Apple Health synced', lines.join('\n\n'));
     } catch (e: any) { Alert.alert('Could not read Apple Health', e?.message ?? String(e)); }
     finally { setBusy(null); }
   };
-  const healthConnect = async () => {
+  // iOS can't open Apple's Health sheet (or an alert) while our consent sheet is still
+  // sliding away, and fails silently. So: close ours first, then ask Apple once it's gone.
+  const wantConnect = useRef(false);
+  const healthConnect = () => {
+    wantConnect.current = true;
     setConsentOpen(false);
-    try { await health.connect(); setHConnected(true); await healthImport(90); }
-    catch (e: any) { Alert.alert('Could not connect', e?.message ?? String(e)); }
+    setTimeout(() => { if (wantConnect.current) startHealthConnect(); }, 900); // fallback if onDismiss doesn't fire
+  };
+  const startHealthConnect = async () => {
+    if (!wantConnect.current) return;
+    wantConnect.current = false;
+    setBusy('Waiting for Apple Health…');
+    try {
+      await Promise.race([
+        health.connect(),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Apple Health did not respond. Please try again.')), 60_000)),
+      ]);
+      setHConnected(true);
+      setBusy(null);
+      await healthImport(90);
+    } catch (e: any) {
+      setBusy(null);
+      const msg = String(e?.message ?? e);
+      Alert.alert('Could not connect Apple Health', /entitlement/i.test(msg)
+        ? 'This build is missing the Apple Health permission. It needs to be rebuilt (ask Claude).' : msg);
+    }
   };
   const healthDisconnect = () => Alert.alert('Disconnect Apple Health?', 'Runs already imported stay. To remove access fully, go to iPhone Settings → Health → Data Access & Devices → LevelUp+.', [
     { text: 'Cancel', style: 'cancel' },
@@ -205,11 +237,11 @@ export default function ProfileScreen() {
               </View>
               <Text style={[s.sub, { marginBottom: 12 }]}>{stravaRuns} runs imported from Strava. Already-imported runs are never counted twice.</Text>
               <View style={s.row}>
-                <Btn title="Last 30 days" kind="ghost" onPress={() => doImport(30)} style={{ flex: 1, paddingHorizontal: 6 }} />
+                <Btn title="30 days" kind="ghost" onPress={() => doImport(30)} style={{ flex: 1, paddingHorizontal: 6 }} />
                 <Btn title="90 days" kind="ghost" onPress={() => doImport(90)} style={{ flex: 1, paddingHorizontal: 6 }} />
                 <Btn title="1 year" kind="ghost" onPress={() => doImport(365)} style={{ flex: 1, paddingHorizontal: 6 }} />
               </View>
-              <Text style={[s.sub, { marginTop: 12, fontSize: 12 }]}>Imported runs earn XP and badges like normal. Only runs from the last 30 days hold tiles on the map.</Text>
+              <Text style={[s.sub, { marginTop: 12, fontSize: 12 }]}>Strava runs earn XP and badges, and show on My tiles only (not the Battle map or leaderboards).</Text>
               <Pressable onPress={doDisconnect}><Text style={[s.sub, { marginTop: 12, textAlign: 'center' }]}>Disconnect Strava</Text></Pressable>
             </>
           )}
@@ -242,7 +274,8 @@ export default function ProfileScreen() {
       </Modal>
 
       {/* Apple Health consent */}
-      <Modal visible={consentOpen} animationType="slide" transparent onRequestClose={() => setConsentOpen(false)}>
+      <Modal visible={consentOpen} animationType="slide" transparent onRequestClose={() => setConsentOpen(false)}
+        onDismiss={() => { if (wantConnect.current) setTimeout(startHealthConnect, 150); }}>
         <View style={s.ov}>
           <View style={s.sheet}>
             <Text style={[s.title, { marginBottom: 8 }]}>Share your runs from Apple Health</Text>
