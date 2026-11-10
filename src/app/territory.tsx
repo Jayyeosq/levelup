@@ -9,12 +9,14 @@ import { Btn, C, Hex, Icon, num, s } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import * as battle from '../lib/battle';
 import { areasHeld, dayOf, heldTiles } from '../lib/game';
-import { areaOfTile, tileCenter, tilePolygon } from '../lib/geo';
+import { areaOfTile, tileCenter, tileOf, tilePolygon } from '../lib/geo';
 import { useStore } from '../lib/store';
 import { currentPosition } from '../lib/tracker';
 
 type Mode = 'battle' | 'mine';
 const MAX_DELTA = 0.12; // zoomed further out than ~13 km → ask to zoom in
+// draw order: rivals at the bottom, your tiles on top
+const ORDER: Record<battle.TileKind, number> = { rival: 1, reach: 2, lost: 3, mine: 4, attack: 5 };
 
 function Crown({ size = 16, color = C.acc }: { size?: number; color?: string }) {
   return <MaterialCommunityIcons name="crown" size={size} color={color} />;
@@ -102,29 +104,37 @@ export default function Territory() {
   const homeKing = kings.find((k) => k.town === profile.homeTown);
   const selTile = sel ? tiles.find((t) => t.tile_id === sel) : null;
   const lostSet = useMemo(() => new Set(lost?.ids ?? []), [lost]);
+  const counts = useMemo(() => {
+    const c: Record<battle.TileKind, number> = { mine: 0, attack: 0, lost: 0, reach: 0, rival: 0 };
+    tiles.forEach((t) => { c[battle.tileKind(t, lostSet)]++; });
+    return c;
+  }, [tiles, lostSet]);
 
   return (
     <View style={s.screen}>
       <MapView ref={mapRef} style={{ flex: 1 }} showsUserLocation userInterfaceStyle="dark"
         initialRegion={{ latitude: 1.3521, longitude: 103.8198, latitudeDelta: 0.25, longitudeDelta: 0.25 }}
-        onRegionChangeComplete={onRegion} onPress={() => setSel(null)}>
+        onRegionChangeComplete={onRegion}
+        onPress={(e) => setSel(tileOf(e.nativeEvent.coordinate))}>
+        {/* One tap reaches this handler twice on iOS (the tile's press bubbles up, then the map's own press),
+            so selecting must be idempotent: never toggle here. Clear with the x on the card. */}
         {mode === 'battle'
-          ? tiles.map((t) => {
-              const color = t.is_mine ? C.acc : battle.rivalColor(t.owner_id);
-              const strong = Math.min(0.7, 0.28 + t.owner_km * 0.12);
-              const isSel = sel === t.tile_id, isLost = lostSet.has(t.tile_id);
+          ? [...tiles].sort((a, b) => ORDER[battle.tileKind(a, lostSet)] - ORDER[battle.tileKind(b, lostSet)]).map((t) => {
+              const st = battle.KIND_STYLE[battle.tileKind(t, lostSet)];
+              const isSel = sel === t.tile_id;
               return (
-                <Polygon key={t.tile_id} coordinates={tilePolygon(t.tile_id)} tappable onPress={() => setSel(t.tile_id)}
-                  fillColor={battle.hexToRgba(color, strong)}
-                  strokeColor={isSel ? '#ffffff' : isLost ? C.bad : battle.hexToRgba(color, 0.9)}
-                  strokeWidth={isSel || isLost ? 3 : 1} />
+                <Polygon key={t.tile_id} coordinates={tilePolygon(t.tile_id)} tappable={false}
+                  fillColor={st.fill} strokeColor={isSel ? '#ffffff' : st.stroke} strokeWidth={isSel ? 3 : st.width} zIndex={isSel ? 9 : ORDER[battle.tileKind(t, lostSet)]} />
               );
             })
           : Object.entries(held).map(([id, km]) => (
-              <Polygon key={id} coordinates={tilePolygon(id)} tappable onPress={() => setSel(id)}
+              <Polygon key={id} coordinates={tilePolygon(id)} tappable={false}
                 fillColor={`rgba(255,106,43,${Math.min(0.75, 0.3 + km * 0.25).toFixed(2)})`}
                 strokeColor={sel === id ? '#ffffff' : 'rgba(255,106,43,0.9)'} strokeWidth={sel === id ? 3 : 1} />
             ))}
+        {mode === 'battle' && sel && !selTile && (
+          <Polygon coordinates={tilePolygon(sel)} tappable={false} fillColor="rgba(255,255,255,0.08)" strokeColor="#ffffff" strokeWidth={2} zIndex={9} />
+        )}
         {mode === 'mine' && (state.runs.find((r) => !r.flagged)?.route?.length ?? 0) > 1 &&
           <Polyline coordinates={state.runs.find((r) => !r.flagged)!.route} strokeColor="#ffffff" strokeWidth={2} />}
       </MapView>
@@ -175,17 +185,35 @@ export default function Territory() {
                 {tooFar && <Text style={[s.sub, { color: C.acc }]}>Zoom in to see who holds each tile</Text>}
                 {loading && <ActivityIndicator color={C.acc} size="small" style={{ alignSelf: 'flex-start', marginTop: 6 }} />}
                 {err && <Text style={[s.sub, { color: C.bad }]}>{err}</Text>}
-                {selTile && (
+                {mode === 'battle' && sel && (
                   <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line }}>
-                    <Text style={[s.txt, num]}>
-                      <Text style={{ fontWeight: '600' }}>{selTile.is_mine ? 'Your tile' : `@${selTile.username}'s tile`}</Text>
-                      {' · '}{areaOfTile(selTile.tile_id)}
-                    </Text>
-                    <Text style={[s.sub, num]}>
-                      {selTile.is_mine
-                        ? `You ran ${selTile.owner_km} km here in 30 days${selTile.contenders > 1 ? ` · ${selTile.contenders - 1} rival${selTile.contenders > 2 ? 's' : ''} fighting for it` : ''}`
-                        : `${selTile.owner_km} km by @${selTile.username} · you ${selTile.my_km} km · run ${(selTile.owner_km - selTile.my_km + 0.05).toFixed(2)} km more here to take it`}
-                    </Text>
+                    <Pressable onPress={() => setSel(null)} hitSlop={12} style={{ position: 'absolute', right: 0, top: 8, zIndex: 2 }}>
+                      <Icon name="x" color={C.mut} size={18} />
+                    </Pressable>
+                    {selTile ? (() => {
+                      const k = battle.tileKind(selTile, lostSet);
+                      const gap = (selTile.owner_km - selTile.my_km + 0.05).toFixed(2);
+                      return (
+                        <>
+                          <Text style={[s.txt, num]}>
+                            <Text style={{ fontWeight: '600' }}>{selTile.is_mine ? 'Your tile' : `${selTile.avatar} @${selTile.username}'s tile`}</Text>
+                            {' · '}{areaOfTile(selTile.tile_id)}
+                          </Text>
+                          <Text style={[s.sub, num]}>
+                            {selTile.is_mine
+                              ? selTile.runner_up_name
+                                ? `You ${selTile.owner_km} km · @${selTile.runner_up_name} ${selTile.runner_up_km} km${k === 'attack' ? ' · under attack, run here to defend it' : ''}`
+                                : `You ran ${selTile.owner_km} km here in 30 days · no rivals yet`
+                              : `@${selTile.username} ${selTile.owner_km} km · you ${selTile.my_km} km · run ${gap} km more here to take it`}
+                          </Text>
+                        </>
+                      );
+                    })() : (
+                      <>
+                        <Text style={[s.txt, { fontWeight: '600' }]}>Unclaimed · {areaOfTile(sel)}</Text>
+                        <Text style={s.sub}>Nobody has run here in 30 days. Run through it to take it.</Text>
+                      </>
+                    )}
                   </View>
                 )}
               </>
@@ -210,9 +238,22 @@ export default function Territory() {
       </SafeAreaView>
 
       {mode === 'battle' && (
-        <View style={{ position: 'absolute', bottom: 12, left: 12, right: 12 }} pointerEvents="none">
-          <Text style={[s.sub, { textAlign: 'center', color: C.mut, fontSize: 11 }]}>
-            Tiles near where runs start and end are hidden to protect everyone's home
+        <View style={{ position: 'absolute', bottom: 12, left: 12, right: 12, gap: 6 }} pointerEvents="none">
+          {!tooFar && tiles.length > 0 && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+              {(['mine', 'attack', 'lost', 'reach', 'rival'] as const).filter((k) => counts[k] > 0 || k === 'mine').map((k) => {
+                const st = battle.KIND_STYLE[k];
+                return (
+                  <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(14,16,20,0.88)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: C.line }}>
+                    <View style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: st.fill, borderColor: st.stroke, borderWidth: k === 'attack' ? 2 : 1 }} />
+                    <Text style={[num, { color: C.txt, fontSize: 12, fontWeight: '500' }]}>{st.label} {counts[k]}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          <Text style={[s.sub, { alignSelf: 'center', textAlign: 'center', color: C.sec, fontSize: 11, backgroundColor: 'rgba(14,16,20,0.88)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden', marginTop: 0 }]}>
+            Tap any tile to see who holds it. Tiles near run starts and ends are hidden.
           </Text>
         </View>
       )}
