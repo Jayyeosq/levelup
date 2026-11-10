@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <rect width="880" height="200" rx="16" fill="#0E1014"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#FF6A2B"/></marker></defs>
+  <g font-size="15" fill="#EEF0F4" text-anchor="middle">
+    <g transform="translate(90,100)"><rect x="-70" y="-42" width="140" height="84" rx="12" fill="#1A1D23" stroke="#2A2E36"/><text y="-6" font-weight="600">Run</text><text y="16" font-size="12" fill="#9AA1AD">app GPS or watch</text></g>
+    <g transform="translate(265,100)"><rect x="-70" y="-42" width="140" height="84" rx="12" fill="#1A1D23" stroke="#2A2E36"/><text y="-6" font-weight="600">Earn XP</text><text y="16" font-size="12" fill="#9AA1AD">10 XP/km + bonuses</text></g>
+    <g transform="translate(440,100)"><rect x="-70" y="-42" width="140" height="84" rx="12" fill="#1A1D23" stroke="#2A2E36"/><text y="-6" font-weight="600">Level up</text><text y="16" font-size="12" fill="#9AA1AD">titles + 12 badges</text></g>
+    <g transform="translate(615,100)"><rect x="-70" y="-42" width="140" height="84" rx="12" fill="#1A1D23" stroke="#FF6A2B"/><text y="-6" font-weight="600">Take tiles</text><text y="16" font-size="12" fill="#9AA1AD">most km in 30 days</text></g>
+    <g transform="translate(790,100)"><rect x="-70" y="-42" width="140" height="84" rx="12" fill="#1A1D23" stroke="#2A2E36"/><text y="-6" font-weight="600">Compete</text><text y="16" font-size="12" fill="#9AA1AD">Kings, leaderboard</text></g>
+  </g>
+  <g stroke="#FF6A2B" stroke-width="2" fill="none" marker-end="url(#a)">
+    <path d="M162 100H192"/><path d="M337 100H367"/><path d="M512 100H542"/><path d="M687 100H717"/>
+    <path d="M790 142V172H90V146"/>
+  </g>
+  <text x="440" y="190" text-anchor="middle" font-size="12" fill="#9AA1AD">a rival takes your tile → you run again to win it back</text>
+</svg>

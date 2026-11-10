@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 250" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <rect width="880" height="250" rx="16" fill="#0E1014"/>
+  <defs><polygon id="h" points="0,-40 34.6,-20 34.6,20 0,40 -34.6,20 -34.6,-20"/></defs>
+  <g font-size="14" fill="#EEF0F4" text-anchor="middle">
+    <g transform="translate(95,95)"><use href="#h" fill="rgba(255,106,43,0.62)" stroke="#FF6A2B" stroke-width="2"/><text y="72" font-weight="600">Yours</text><text y="92" font-size="12" fill="#9AA1AD">most km here</text></g>
+    <g transform="translate(265,95)"><use href="#h" fill="rgba(255,106,43,0.62)" stroke="#FACC15" stroke-width="4"/><text y="72" font-weight="600">Under attack</text><text y="92" font-size="12" fill="#9AA1AD">rival has 70%+ of your km</text></g>
+    <g transform="translate(440,95)"><use href="#h" fill="rgba(242,85,90,0.5)" stroke="#F2555A" stroke-width="3"/><text y="72" font-weight="600">Just lost</text><text y="92" font-size="12" fill="#9AA1AD">taken since your last visit</text></g>
+    <g transform="translate(615,95)"><use href="#h" fill="rgba(76,154,255,0.32)" stroke="#4C9AFF" stroke-width="3"/><text y="72" font-weight="600">Within reach</text><text y="92" font-size="12" fill="#9AA1AD">you have 70%+ of owner's km</text></g>
+    <g transform="translate(785,95)"><use href="#h" fill="rgba(148,158,172,0.16)" stroke="rgba(148,158,172,0.5)" stroke-width="1"/><text y="72" font-weight="600">Rivals</text><text y="92" font-size="12" fill="#9AA1AD">someone else's</text></g>
+  </g>
+  <text x="440" y="225" text-anchor="middle" font-size="12" fill="#9AA1AD">Each hex is ~156 m across. One pass through ≈ 0.1–0.18 km. Only the last 30 days count.</text>
+</svg>

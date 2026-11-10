@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 330" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+  <rect width="880" height="330" rx="16" fill="#0E1014"/>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#9AA1AD"/></marker></defs>
+  <g font-size="14" fill="#EEF0F4">
+    <rect x="30" y="30" width="250" height="270" rx="12" fill="#1A1D23" stroke="#FF6A2B"/>
+    <text x="155" y="58" text-anchor="middle" font-weight="600">iPhone app (Expo / React Native)</text>
+    <g font-size="12" fill="#C9CED6"><text x="50" y="90">• Run tracker (GPS, works screen-locked)</text><text x="50" y="114">• Game rules: XP, levels, badges</text><text x="50" y="138">• Hex tiles per run</text><text x="50" y="162">• Battle map, Community, Profile</text><text x="50" y="186">• Offline cache on the phone</text></g>
+    <rect x="50" y="212" width="210" height="34" rx="8" fill="#2A1A14" stroke="#FF6A2B"/><text x="155" y="234" text-anchor="middle" font-size="12">Apple Health (watch runs)</text>
+    <rect x="50" y="254" width="210" height="34" rx="8" fill="#1F1712" stroke="#FC4C02"/><text x="155" y="276" text-anchor="middle" font-size="12">Strava (personal XP only)</text>
+
+    <rect x="360" y="30" width="490" height="270" rx="12" fill="#1A1D23" stroke="#3ECF8E"/>
+    <text x="605" y="58" text-anchor="middle" font-weight="600">Supabase (Singapore)</text>
+    <rect x="380" y="76" width="220" height="104" rx="8" fill="#14201A" stroke="#2A2E36"/><text x="490" y="98" text-anchor="middle" font-weight="600" font-size="13">Postgres + row-level security</text>
+    <g font-size="12" fill="#C9CED6"><text x="394" y="122">profiles · runs · tile_scores</text><text x="394" y="142">friends · activities · kudos</text><text x="394" y="162">bots (testing only)</text></g>
+    <rect x="620" y="76" width="210" height="104" rx="8" fill="#14201A" stroke="#2A2E36"/><text x="725" y="98" text-anchor="middle" font-weight="600" font-size="13">Server functions</text>
+    <g font-size="12" fill="#C9CED6"><text x="634" y="122">territory_in_box · my_tiles</text><text x="634" y="142">town_kings · leaderboard</text><text x="634" y="162">find_runner · username login</text></g>
+    <rect x="380" y="196" width="450" height="88" rx="8" fill="#14201A" stroke="#2A2E36"/><text x="605" y="218" text-anchor="middle" font-weight="600" font-size="13">Edge Functions</text>
+    <g font-size="12" fill="#C9CED6"><text x="394" y="242">strava-auth: one-tap Strava login, keeps the client secret on the server</text><text x="394" y="264">auth-login: log in by username without ever sending emails to the phone</text></g>
+  </g>
+  <g stroke="#9AA1AD" stroke-width="2" fill="none" marker-end="url(#a)"><path d="M282 130H356"/><path d="M356 160H286"/></g>
+  <text x="320" y="122" text-anchor="middle" font-size="11" fill="#9AA1AD">runs</text><text x="320" y="178" text-anchor="middle" font-size="11" fill="#9AA1AD">map, feed</text>
+</svg>

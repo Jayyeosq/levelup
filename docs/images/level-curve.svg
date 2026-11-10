@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" font-family="-apple-system,Segoe UI,Helvetica,Arial,sans-serif">
+<rect width="880" height="300" rx="16" fill="#0E1014"/>
+<text x="70" y="26" fill="#EEF0F4" font-size="15" font-weight="600">Total XP needed per level</text>
+<line x1="70" x2="850" y1="250.0" y2="250.0" stroke="#22262D"/><text x="62" y="254.0" fill="#9AA1AD" font-size="11" text-anchor="end">0k</text>
+<line x1="70" x2="850" y1="211.9" y2="211.9" stroke="#22262D"/><text x="62" y="215.9" fill="#9AA1AD" font-size="11" text-anchor="end">5k</text>
+<line x1="70" x2="850" y1="173.8" y2="173.8" stroke="#22262D"/><text x="62" y="177.8" fill="#9AA1AD" font-size="11" text-anchor="end">10k</text>
+<line x1="70" x2="850" y1="135.7" y2="135.7" stroke="#22262D"/><text x="62" y="139.7" fill="#9AA1AD" font-size="11" text-anchor="end">15k</text>
+<line x1="70" x2="850" y1="97.6" y2="97.6" stroke="#22262D"/><text x="62" y="101.6" fill="#9AA1AD" font-size="11" text-anchor="end">20k</text>
+<line x1="70" x2="850" y1="59.5" y2="59.5" stroke="#22262D"/><text x="62" y="63.5" fill="#9AA1AD" font-size="11" text-anchor="end">25k</text>
+<polyline points="70.0,250.0 85.9,249.8 101.8,249.3 117.8,248.6 133.7,247.7 149.6,246.5 165.5,245.2 181.4,243.7 197.3,242.0 213.3,240.1 229.2,238.0 245.1,235.7 261.0,233.3 276.9,230.7 292.9,228.0 308.8,225.1 324.7,222.0 340.6,218.8 356.5,215.4 372.4,211.8 388.4,208.1 404.3,204.3 420.2,200.3 436.1,196.2 452.0,191.9 468.0,187.5 483.9,182.9 499.8,178.2 515.7,173.3 531.6,168.3 547.6,163.2 563.5,157.9 579.4,152.5 595.3,146.9 611.2,141.2 627.1,135.4 643.1,129.4 659.0,123.3 674.9,117.1 690.8,110.8 706.7,104.3 722.7,97.6 738.6,90.9 754.5,84.0 770.4,77.0 786.3,69.8 802.2,62.6 818.2,55.2 834.1,47.6 850.0,40.0" fill="none" stroke="#FF6A2B" stroke-width="3"/>
+<line x1="70.0" y1="250.0" x2="76.0" y2="146.0" stroke="#4A505A"/>
+<circle cx="70.0" cy="250.0" r="5" fill="#FF6A2B" stroke="#0E1014" stroke-width="2"/>
+<text x="80.0" y="150.0" fill="#EEF0F4" font-size="12" text-anchor="start">Shuffler · L1 · 0 XP</text>
+<line x1="149.6" y1="246.5" x2="155.6" y2="171.0" stroke="#4A505A"/>
+<circle cx="149.6" cy="246.5" r="5" fill="#FF6A2B" stroke="#0E1014" stroke-width="2"/>
+<text x="159.6" y="175.0" fill="#EEF0F4" font-size="12" text-anchor="start">Jogger · L6 · 453 XP</text>
+<line x1="229.2" y1="238.0" x2="235.2" y2="196.0" stroke="#4A505A"/>
+<circle cx="229.2" cy="238.0" r="5" fill="#FF6A2B" stroke="#0E1014" stroke-width="2"/>
+<text x="239.2" y="200.0" fill="#EEF0F4" font-size="12" text-anchor="start">Pacer · L11 · 1,577 XP</text>
+<circle cx="388.4" cy="208.1" r="5" fill="#FF6A2B" stroke="#0E1014" stroke-width="2"/>
+<text x="384" y="226" fill="#EEF0F4" font-size="12" text-anchor="start">Strider · L21 · 5,493 XP</text>
+<circle cx="627.1" cy="135.4" r="5" fill="#FF6A2B" stroke="#0E1014" stroke-width="2"/>
+<text x="617.1" y="121.4" fill="#EEF0F4" font-size="12" text-anchor="end">Road Warrior · L36 · 15,041 XP</text>
+<circle cx="850.0" cy="40.0" r="5" fill="#FF6A2B" stroke="#0E1014" stroke-width="2"/>
+<text x="840.0" y="28.0" fill="#EEF0F4" font-size="12" text-anchor="end">Legend · L50 · 27,561 XP</text>
+<text x="70.0" y="270" fill="#9AA1AD" font-size="11" text-anchor="middle">L1</text>
+<text x="213.3" y="270" fill="#9AA1AD" font-size="11" text-anchor="middle">L10</text>
+<text x="372.4" y="270" fill="#9AA1AD" font-size="11" text-anchor="middle">L20</text>
+<text x="531.6" y="270" fill="#9AA1AD" font-size="11" text-anchor="middle">L30</text>
+<text x="690.8" y="270" fill="#9AA1AD" font-size="11" text-anchor="middle">L40</text>
+<text x="850.0" y="270" fill="#9AA1AD" font-size="11" text-anchor="middle">L50</text>
+<text x="440.0" y="290" fill="#9AA1AD" font-size="11" text-anchor="middle">At 10 XP per km: Jogger ≈ 45 km · Pacer ≈ 158 km · Strider ≈ 549 km · Legend ≈ 2,760 km (before bonuses)</text></svg>
