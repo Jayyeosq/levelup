@@ -15,9 +15,9 @@ export default function HealthSync() {
     if (!userId || !ready || sync === 'syncing' || !health.healthSupported()) return;
     const run = async () => {
       if (Date.now() - last.current < 10 * 60_000) return;
-      if (!(await health.isConnected())) return;
+      if (!(await health.isConnected(userId))) return;
       last.current = Date.now();
-      try { importRuns((await health.fetchRuns(14)).runs); } catch { /* try again next time */ }
+      try { importRuns((await health.fetchRuns(14, userId)).runs); } catch { /* try again next time */ }
     };
     const t = setTimeout(run, 1000); // only once the account sync has finished (see the check above)
     const sub = AppState.addEventListener('change', (st) => { if (st === 'active') run(); });

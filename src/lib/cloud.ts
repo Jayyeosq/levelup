@@ -8,7 +8,7 @@ export type CloudProfile = { username: string; avatar: string; home_town: string
 
 type RunRow = {
   client_id: string; started_at: string; duration_sec: number; km: number | string;
-  route: any; tiles: any; source: 'app' | 'strava' | 'test' | 'health'; strava_id: number | null; xp?: number | null;
+  route: any; tiles: any; source: 'app' | 'strava' | 'test' | 'health'; strava_id: number | null; xp?: number | null; steps?: number | null;
 };
 
 export const toRow = (r: Run | (RunInput & { id: string })): RunRow => ({
@@ -21,12 +21,13 @@ export const toRow = (r: Run | (RunInput & { id: string })): RunRow => ({
   source: r.source ?? (r.test ? 'test' : 'app'),
   strava_id: r.stravaId ?? null,
   xp: 'xp' in r && typeof (r as Run).xp === 'number' ? (r as Run).xp : null,
+  ...(typeof r.steps === 'number' ? { steps: Math.round(r.steps) } : {}),
 });
 
 export const fromRow = (row: RunRow): RunInput => ({
   startedAt: Date.parse(row.started_at), durationSec: row.duration_sec, km: Number(row.km),
   route: row.route ?? [], tiles: row.tiles ?? {}, source: row.source, stravaId: row.strava_id ?? undefined,
-  test: row.source === 'test',
+  test: row.source === 'test', steps: row.steps ?? undefined,
 });
 
 export async function fetchProfile(userId: string): Promise<CloudProfile | null> {
@@ -42,11 +43,12 @@ export async function updateProfile(userId: string, patch: Partial<Omit<CloudPro
 }
 
 export async function fetchRuns(): Promise<RunRow[]> {
-  const { data, error } = await supabase.from('runs')
-    .select('client_id, started_at, duration_sec, km, route, tiles, source, strava_id')
-    .order('started_at', { ascending: false }).limit(1000);
-  if (error) throw error;
-  return (data ?? []) as RunRow[];
+  const cols = 'client_id, started_at, duration_sec, km, route, tiles, source, strava_id';
+  const q = (c: string) => supabase.from('runs').select(c).order('started_at', { ascending: false }).limit(1000);
+  let res = await q(cols + ', steps');
+  if (res.error && /steps/i.test(res.error.message)) res = await q(cols); // database not updated yet (0008)
+  if (res.error) throw res.error;
+  return (res.data ?? []) as unknown as RunRow[];
 }
 
 /** Uploads runs; ones already saved (same client_id) are skipped. */

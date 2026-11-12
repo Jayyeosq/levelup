@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn, C, Hex, Icon, num, s } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import * as battle from '../lib/battle';
+import * as push from '../lib/push';
 import { areasHeld, dayOf, heldTiles } from '../lib/game';
 import { areaOfTile, tileCenter, tileOf, tilePolygon } from '../lib/geo';
 import { useStore } from '../lib/store';
@@ -40,6 +41,7 @@ export default function Territory() {
   const [kingsOpen, setKingsOpen] = useState(false);
   const [lost, setLost] = useState<{ ids: string[]; by: string } | null>(null);
   const [heldCount, setHeldCount] = useState<number | null>(null);
+  const [pushState, setPushState] = useState<push.PushState>('unsupported');
   const region = useRef<Region | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,6 +77,7 @@ export default function Territory() {
   // Kings + "who took my tiles" every time you open the tab
   useFocusEffect(useCallback(() => {
     if (!userId) return;
+    push.state(userId).then(setPushState);
     (async () => {
       try {
         const [k, mine] = await Promise.all([battle.fetchKings(), battle.fetchMyTiles()]);
@@ -185,6 +188,13 @@ export default function Territory() {
                 {tooFar && <Text style={[s.sub, { color: C.acc }]}>Zoom in to see who holds each tile</Text>}
                 {loading && <ActivityIndicator color={C.acc} size="small" style={{ alignSelf: 'flex-start', marginTop: 6 }} />}
                 {err && <Text style={[s.sub, { color: C.bad }]}>{err}</Text>}
+                {pushState === 'off' && userId && (
+                  <Pressable onPress={async () => { try { setPushState(await push.enable(userId)); } catch { /* shown on Profile */ } }}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                    <Icon name="bell" size={15} color={C.acc} />
+                    <Text style={{ color: C.acc, fontWeight: '500', fontSize: 13, flex: 1 }}>Get alerts when rivals attack your tiles</Text>
+                  </Pressable>
+                )}
                 {mode === 'battle' && sel && (
                   <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line }}>
                     <Pressable onPress={() => setSel(null)} hitSlop={12} style={{ position: 'absolute', right: 0, top: 8, zIndex: 2 }}>

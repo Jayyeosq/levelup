@@ -1,6 +1,7 @@
 // Area Battle: the shared territory map. All data comes from server functions
 // in 0003_territory.sql, which only return usernames and km totals — never routes,
 // and never tiles near where anyone's runs start or end.
+import type { RunBattle } from './game';
 import { supabase } from './supabase';
 
 export type BattleTile = {
@@ -64,3 +65,15 @@ export const hexToRgba = (hex: string, a: number) => {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 };
+
+/** What your just-saved run did on the map: tiles taken, claimed, defended. Null if not known. */
+export async function fetchRunBattle(clientId: string): Promise<RunBattle | null> {
+  const { data, error } = await supabase.rpc('run_battle', { p_client_id: clientId });
+  if (error) throw error;
+  const r = (data as any[] | null)?.[0];
+  if (!r) return null;
+  return {
+    captured: Number(r.captured), capturedFrom: r.captured_from ?? null,
+    claimed: Number(r.claimed), defended: Number(r.defended), contested: Number(r.contested),
+  };
+}

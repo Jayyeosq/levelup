@@ -3,6 +3,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth';
+import { fetchRunBattle } from './battle';
 import * as cloud from './cloud';
 import { deleteActivitiesForRun, deleteAllMyActivities, postActivities } from './community';
 import { deleteRun, GameState, importRuns, levelOf, newState, processRun, rebuild, Run, RunInput, RunResult } from './game';
@@ -35,7 +36,7 @@ const StoreCtx = createContext<Ctx | null>(null);
 
 const toInput = (r: Run): RunInput & { id: string } => ({
   id: r.id, startedAt: r.startedAt, durationSec: r.durationSec, km: r.km, route: r.route, tiles: r.tiles,
-  test: r.test, source: r.source, stravaId: r.stravaId,
+  test: r.test, source: r.source, stravaId: r.stravaId, steps: r.steps,
 });
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
@@ -125,6 +126,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       cloud.uploadRuns([cloud.toRow(result.run)])
         .then(() => {
           pushStats(s);
+          // The server has now worked out what this run did on the Battle map: show it on the result screen.
+          if (!result.run.flagged) {
+            fetchRunBattle(result.run.id)
+              .then((b) => { if (b) setLastResult((cur) => (cur && cur.run.id === result.run.id ? { ...cur, battle: b } : cur)); })
+              .catch(() => {});
+          }
           // Share to friends' feeds (never the route; never Strava-imported runs)
           const run = result.run;
           if (run.flagged || run.source === 'strava') return;

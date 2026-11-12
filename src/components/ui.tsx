@@ -93,6 +93,14 @@ export function ResultModal({ result, onClose }: { result: RunResult | null; onC
   const { run } = result;
   const lvUp = result.levelAfter > result.levelBefore;
   const newTitle = result.titleAfter !== result.titleBefore;
+  const b = result.battle;
+  const pl = (n: number) => (n === 1 ? '' : 's');
+  const battleRows: [number, IconName, string, string][] = b ? [
+    [b.captured, 'flag', C.acc, `Took ${b.captured} tile${pl(b.captured)}${b.capturedFrom ? ` from @${b.capturedFrom}` : ''}`],
+    [b.claimed, 'plus-circle', C.good, `Claimed ${b.claimed} tile${pl(b.claimed)} nobody held`],
+    [b.defended, 'shield', C.txt, `Defended ${b.defended} of your tiles`],
+    [b.contested, 'target', C.sec, `${b.contested} tile${pl(b.contested)} still held by rivals`],
+  ] : [];
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <View style={s.ov}>
@@ -112,6 +120,18 @@ export function ResultModal({ result, onClose }: { result: RunResult | null; onC
               <View style={s.hl}>
                 <Text style={s.hlBig}>Level {result.levelAfter}</Text>
                 <Text style={s.hlTxt}>{newTitle ? `New title: ${result.titleAfter}` : result.titleAfter}</Text>
+              </View>
+            )}
+
+            {battleRows.some((r) => r[0] > 0) && (
+              <View style={[s.hl, { alignItems: 'stretch', borderColor: C.line2 }]}>
+                <Text style={[s.eventTitle, { marginBottom: 4 }]}>On the Battle map</Text>
+                {battleRows.filter((r) => r[0] > 0).map(([, icon, color, text]) => (
+                  <View key={icon} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 4 }}>
+                    <Icon name={icon} color={color} size={16} />
+                    <Text style={[s.txt, num, { flex: 1 }]}>{text}</Text>
+                  </View>
+                ))}
               </View>
             )}
 

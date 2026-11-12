@@ -57,6 +57,18 @@
           "background": false
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "color": "#FF6A2B"
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "LevelUp+ counts your steps during a run to check it was done on foot."
+        }
+      ],
       "expo-dev-client"
     ],
     "extra": {

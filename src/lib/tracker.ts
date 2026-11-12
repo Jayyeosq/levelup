@@ -4,6 +4,8 @@
 // - In Expo Go (where background location isn't available on iOS) it falls back
 //   to foreground tracking and keeps the screen awake.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requireOptionalNativeModule } from 'expo';
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
@@ -176,6 +178,7 @@ export async function start(): Promise<{ ok: boolean; message?: string }> {
   if (!perm.ok) return { ok: false, message: perm.message };
   Object.assign(S, { status: 'running', startedAt: Date.now(), activeMs: 0, segmentStart: Date.now(), distanceM: 0, segments: [], last: null });
   S.mode = await attach(perm.background);
+  askMotion();
   save(true);
   emit();
   return { ok: true };
@@ -201,14 +204,16 @@ async function stopUpdates() {
   try { deactivateKeepAwake('run'); } catch {}
 }
 
-export type FinishedRun = { startedAt: number; durationSec: number; km: number; route: LatLng[]; tiles: Record<string, number> };
+export type FinishedRun = { startedAt: number; durationSec: number; km: number; route: LatLng[]; tiles: Record<string, number>; steps?: number };
 
 export async function finish(): Promise<FinishedRun> {
   if (S.segmentStart) S.activeMs += Date.now() - S.segmentStart;
   await stopUpdates();
+  const steps = await stepsBetween(S.startedAt, Date.now());
   const out: FinishedRun = {
     startedAt: S.startedAt, durationSec: S.activeMs / 1000, km: S.distanceM / 1000,
     route: simplify(S.segments.flat()), tiles: tilesOf(S.segments),
+    ...(steps !== undefined ? { steps } : {}),
   };
   discardState();
   return out;
@@ -229,6 +234,33 @@ function tilesOf(segments: LatLng[][]): Record<string, number> {
     for (const id in t) out[id] = (out[id] || 0) + t[id];
   }
   return out;
+}
+
+// ---------- step count (iPhone): proof the run was on foot ----------
+// Needs the app build that includes the motion sensor. Without it, runs simply have no step count.
+let PED: any | null | undefined;
+function pedometer(): any | null {
+  if (PED !== undefined) return PED;
+  if (Platform.OS !== 'ios') return (PED = null);
+  try { if (!requireOptionalNativeModule('ExponentPedometer')) return (PED = null); } catch { return (PED = null); }
+  try { PED = require('expo-sensors').Pedometer ?? null; } catch { PED = null; }
+  return PED;
+}
+function askMotion() {
+  const p = pedometer();
+  if (p) p.requestPermissionsAsync().catch(() => {});
+}
+async function stepsBetween(startMs: number, endMs: number): Promise<number | undefined> {
+  const p = pedometer();
+  if (!p) return undefined;
+  try {
+    if (!(await p.isAvailableAsync()) || !(await p.getPermissionsAsync()).granted) return undefined;
+    const r: any = await Promise.race([
+      p.getStepCountAsync(new Date(startMs), new Date(endMs)),
+      new Promise((res) => setTimeout(() => res(null), 4000)),
+    ]);
+    return r && typeof r.steps === 'number' ? Math.round(r.steps) : undefined;
+  } catch { return undefined; }
 }
 
 /** One-off position for centring maps. */

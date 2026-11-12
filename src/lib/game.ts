@@ -13,6 +13,8 @@ export const APP_MIN_PACE_MIN_PER_KM = 3 + 20 / 60; // 3:20/km = 18 km/h, over 2
 export const PB_MIN_KM = 3;
 export const PB_LONG_STEP_KM = 0.5;
 export const PB_PACE_STEP_MIN = 5 / 60; // 5 seconds per km
+// Running is roughly 900–1,300 steps per km. Far fewer means wheels.
+export const MIN_STEPS_PER_KM = 400;
 
 export type Run = {
   id: string;
@@ -28,6 +30,7 @@ export type Run = {
   test?: boolean;
   source?: 'app' | 'strava' | 'test' | 'health';
   stravaId?: number;
+  steps?: number; // steps counted by the phone during an app-tracked run
 };
 
 export type GameState = {
@@ -126,11 +129,14 @@ export const fmtPace = (minPerKm: number) => {
 // ---------- the main rule: turning a run into XP ----------
 export type RunInput = {
   startedAt: number; durationSec: number; km: number; route: LatLng[]; tiles: Record<string, number>;
-  test?: boolean; source?: 'app' | 'strava' | 'test' | 'health'; stravaId?: number;
+  test?: boolean; source?: 'app' | 'strava' | 'test' | 'health'; stravaId?: number; steps?: number;
 };
+/** What a run did on the shared Battle map (worked out by the server after the run is saved). */
+export type RunBattle = { captured: number; capturedFrom: string | null; claimed: number; defended: number; contested: number };
 export type RunResult = {
   run: Run; levelBefore: number; levelAfter: number; titleBefore: string; titleAfter: string;
   newBadges: Badge[]; tilesCaptured: number; usedFreezes: number; earnedFreeze: boolean;
+  battle?: RunBattle | null;
 };
 
 export function processRun(prev: GameState, input: RunInput, nowMs = Date.now()): { state: GameState; result: RunResult } {
@@ -145,13 +151,14 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
   const run: Run = {
     id: input.startedAt.toString(36), startedAt: input.startedAt, durationSec: Math.round(input.durationSec), km,
     route: input.route, tiles: input.tiles, xp: 0, breakdown, early, test: input.test,
-    source: input.source ?? (input.test ? 'test' : 'app'), stravaId: input.stravaId,
+    source: input.source ?? (input.test ? 'test' : 'app'), stravaId: input.stravaId, steps: input.steps,
   };
 
   // Anti-cheat: too fast on average or too short to count.
   if (km < 0.2) run.flagged = 'Too short to count (under 200 m)';
   else if (km >= 1 && paceMin < MIN_PACE_MIN_PER_KM) run.flagged = `Average pace ${fmtPace(paceMin)} is faster than a human run, so it doesn't count`;
   else if (run.source === 'app' && km >= 2 && paceMin < APP_MIN_PACE_MIN_PER_KM) run.flagged = `Average pace ${fmtPace(paceMin)} looks like a bike ride, so it doesn't count`;
+  else if (run.source === 'app' && typeof input.steps === 'number' && km >= 1 && input.steps / km < MIN_STEPS_PER_KM) run.flagged = `Only ${Math.round(input.steps)} steps over ${km.toFixed(1)} km, so it doesn't count as a run`;
   if (run.flagged) {
     breakdown.push([run.flagged, null]);
     s.runs.unshift(run);
@@ -209,7 +216,7 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
   }
   const after = heldTiles(s, today);
   const tilesCaptured = Object.keys(after).filter((id) => !(id in before)).length;
-  if (tilesCaptured) { xp += tilesCaptured * 5; breakdown.push([`${tilesCaptured} tile${tilesCaptured > 1 ? 's' : ''} captured × 5`, tilesCaptured * 5]); }
+  if (tilesCaptured) { xp += tilesCaptured * 5; breakdown.push([`${tilesCaptured} new tile${tilesCaptured > 1 ? 's' : ''} × 5`, tilesCaptured * 5]); }
 
   run.xp = xp;
   s.runs.unshift(run);
@@ -236,7 +243,7 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
 
 const toInput = (r: Run): RunInput => ({
   startedAt: r.startedAt, durationSec: r.durationSec, km: r.km, route: r.route, tiles: r.tiles,
-  test: r.test, source: r.source, stravaId: r.stravaId,
+  test: r.test, source: r.source, stravaId: r.stravaId, steps: r.steps,
 });
 
 /** Replays runs in date order so XP, streaks, badges and tiles are always consistent. */

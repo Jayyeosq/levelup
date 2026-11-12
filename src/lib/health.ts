@@ -10,8 +10,11 @@ import { Platform, TurboModuleRegistry } from 'react-native';
 import type { RunInput } from './game';
 import { kmPerTile, LatLng, simplify } from './geo';
 
-const CONNECTED_KEY = 'levelup.health.connected';
-const LAST_SYNC_KEY = 'levelup.health.lastSync';
+// Kept per LevelUp+ account, so a second account on the same phone must connect (and agree) itself.
+const OLD_CONNECTED_KEY = 'levelup.health.connected';
+const OLD_LAST_SYNC_KEY = 'levelup.health.lastSync';
+const cKey = (uid: string) => `levelup.health.connected.${uid}`;
+const lKey = (uid: string) => `levelup.health.lastSync.${uid}`;
 
 // Loaded lazily: in Expo Go the native module doesn't exist and importing it would crash.
 let HK: any | null | undefined;
@@ -33,21 +36,28 @@ export function healthSupported(): boolean {
   try { return !!m.isHealthDataAvailable(); } catch { return false; }
 }
 
-export const isConnected = async () => (await AsyncStorage.getItem(CONNECTED_KEY)) === '1';
-export const lastSync = async () => Number((await AsyncStorage.getItem(LAST_SYNC_KEY)) ?? 0) || null;
+export async function isConnected(uid: string): Promise<boolean> {
+  // One-time move from the old per-phone setting to the account that was using it.
+  if ((await AsyncStorage.getItem(OLD_CONNECTED_KEY)) === '1') {
+    await AsyncStorage.setItem(cKey(uid), '1');
+    await AsyncStorage.multiRemove([OLD_CONNECTED_KEY, OLD_LAST_SYNC_KEY]);
+  }
+  return (await AsyncStorage.getItem(cKey(uid))) === '1';
+}
+export const lastSync = async (uid: string) => Number((await AsyncStorage.getItem(lKey(uid))) ?? 0) || null;
 
 /** Shows Apple's permission sheet. */
-export async function connect(): Promise<void> {
+export async function connect(uid: string): Promise<void> {
   const m = hk();
   if (!m) throw new Error('Apple Health needs the LevelUp+ app build. It does not work inside Expo Go.');
   await m.requestAuthorization({
     toRead: ['HKWorkoutTypeIdentifier', 'HKWorkoutRouteTypeIdentifier', 'HKQuantityTypeIdentifierDistanceWalkingRunning'],
   });
-  await AsyncStorage.setItem(CONNECTED_KEY, '1');
+  await AsyncStorage.setItem(cKey(uid), '1');
 }
 
-export async function disconnect() {
-  await AsyncStorage.multiRemove([CONNECTED_KEY, LAST_SYNC_KEY]);
+export async function disconnect(uid: string) {
+  await AsyncStorage.multiRemove([cKey(uid), lKey(uid)]);
 }
 
 const toKm = (q?: { quantity: number; unit: string }) => {
@@ -69,7 +79,7 @@ const toSec = (q: { quantity: number; unit: string } | undefined, start: Date, e
 export type HealthFetch = { runs: RunInput[]; skippedStrava: number; found: number; sources: string[] };
 
 /** Running workouts from the last `days` days, converted to LevelUp+ runs. */
-export async function fetchRuns(days: number): Promise<HealthFetch> {
+export async function fetchRuns(days: number, uid: string): Promise<HealthFetch> {
   const m = hk();
   if (!m) throw new Error('Apple Health is not available in this build.');
   const workouts = await m.queryWorkoutSamples({
@@ -102,6 +112,6 @@ export async function fetchRuns(days: number): Promise<HealthFetch> {
       source: 'health',
     });
   }
-  await AsyncStorage.setItem(LAST_SYNC_KEY, String(Date.now()));
+  await AsyncStorage.setItem(lKey(uid), String(Date.now()));
   return { runs, skippedStrava, found: workouts.length, sources: [...sources] };
 }

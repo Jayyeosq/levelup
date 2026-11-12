@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 import AuthScreen from '../components/AuthScreen';
 import HealthSync from '../components/HealthSync';
+import PushSync from '../components/PushSync';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, Icon, IconName } from '../components/ui';
@@ -39,6 +40,7 @@ export default function RootLayout() {
           <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: icon('user') }} />
         </Tabs>
         <HealthSync />
+        <PushSync />
         <AuthGate />
       </StoreProvider>
       </AuthProvider>

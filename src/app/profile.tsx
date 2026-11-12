@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn, C, Card, Icon, s, SectionLabel } from '../components/ui';
@@ -8,7 +9,8 @@ import { useAuth } from '../lib/auth';
 import { useStore } from '../lib/store';
 import * as strava from '../lib/strava';
 import * as health from '../lib/health';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import * as push from '../lib/push';
 
 const AVATARS = ['🏃', '🏃‍♀️', '🦊', '🐯', '🦁', '🐺', '🐼', '🦅', '🐉', '⚡', '🔥', '🚀'];
 const STRAVA_ORANGE = '#FC4C02';
@@ -17,7 +19,8 @@ const input = { backgroundColor: C.card2, borderColor: C.line, borderWidth: 1, b
 
 export default function ProfileScreen() {
   const { profile, setProfile, state, importRuns, sync, resync } = useStore();
-  const { email, signOut } = useAuth();
+  const { email, signOut, userId } = useAuth();
+  const uid = userId ?? '';
   const [townsOpen, setTownsOpen] = useState(false);
   const L = levelOf(state.xp);
 
@@ -26,12 +29,24 @@ export default function ProfileScreen() {
   const [hConnected, setHConnected] = useState(false);
   const [hLast, setHLast] = useState<number | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
-  useEffect(() => { health.isConnected().then(setHConnected); health.lastSync().then(setHLast); }, []);
+  useEffect(() => {
+    if (!uid) { setHConnected(false); setHLast(null); return; }
+    health.isConnected(uid).then(setHConnected); health.lastSync(uid).then(setHLast);
+  }, [uid]);
+
+  // ---- Tile alerts (push notifications) ----
+  const [pushState, setPushState] = useState<push.PushState>('unsupported');
+  useFocusEffect(useCallback(() => { if (uid) push.state(uid).then(setPushState); }, [uid]));
+  const pushOn = async () => {
+    try { setPushState(await push.enable(uid)); }
+    catch (e: any) { Alert.alert('Could not turn on alerts', e?.message ?? String(e)); }
+  };
+  const pushOff = async () => { await push.disable(uid); setPushState('off'); };
 
   const healthImport = async (days: number) => {
     setBusy('Reading runs from Apple Health…');
     try {
-      const { runs, skippedStrava, found, sources } = await health.fetchRuns(days);
+      const { runs, skippedStrava, found, sources } = await health.fetchRuns(days, uid);
       const r = importRuns(runs);
       setHLast(Date.now());
       const lines: string[] = [];
@@ -65,7 +80,7 @@ export default function ProfileScreen() {
     setBusy('Waiting for Apple Health…');
     try {
       await Promise.race([
-        health.connect(),
+        health.connect(uid),
         new Promise((_, rej) => setTimeout(() => rej(new Error('Apple Health did not respond. Please try again.')), 60_000)),
       ]);
       setHConnected(true);
@@ -80,7 +95,7 @@ export default function ProfileScreen() {
   };
   const healthDisconnect = () => Alert.alert('Disconnect Apple Health?', 'Runs already imported stay. To remove access fully, go to iPhone Settings → Health → Data Access & Devices → LevelUp+.', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Disconnect', style: 'destructive', onPress: async () => { await health.disconnect(); setHConnected(false); setHLast(null); } },
+    { text: 'Disconnect', style: 'destructive', onPress: async () => { await health.disconnect(uid); setHConnected(false); setHLast(null); } },
   ]);
 
   // ---- Strava ----
@@ -172,8 +187,29 @@ export default function ProfileScreen() {
             </Text>
           </Pressable>
           <Btn title="Log out" kind="ghost" icon="log-out" onPress={() => Alert.alert('Log out?', 'Your runs are saved in your account.', [
-            { text: 'Cancel', style: 'cancel' }, { text: 'Log out', style: 'destructive', onPress: signOut },
+            { text: 'Cancel', style: 'cancel' }, { text: 'Log out', style: 'destructive', onPress: async () => { await push.disable(); await signOut(); } },
           ])} />
+        </Card>
+
+        {/* Tile alerts */}
+        <SectionLabel>Tile alerts</SectionLabel>
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: pushState === 'unsupported' ? 0 : 12 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name={pushState === 'on' ? 'bell' : 'bell-off'} size={22} color={pushState === 'on' ? C.acc : C.sec} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.txt, { fontWeight: '600' }]}>{pushState === 'on' ? 'Alerts are on' : 'Know when your turf is under attack'}</Text>
+              <Text style={[s.sub, { marginTop: 0 }]}>
+                {pushState === 'unsupported' ? 'Alerts need the newest LevelUp+ app build.'
+                  : pushState === 'blocked' ? 'Notifications are turned off for LevelUp+ in iPhone Settings.'
+                  : 'A notification when a rival is close to taking your tiles, or takes them. A few a day at most.'}
+              </Text>
+            </View>
+          </View>
+          {pushState === 'off' && <Btn title="Turn on alerts" icon="bell" onPress={pushOn} />}
+          {pushState === 'blocked' && <Btn title="Open Settings" kind="ghost" icon="settings" onPress={() => Linking.openSettings()} />}
+          {pushState === 'on' && <Pressable onPress={pushOff}><Text style={[s.sub, { marginTop: 0, textAlign: 'center' }]}>Turn off alerts</Text></Pressable>}
         </Card>
 
         {/* Apple Health */}
