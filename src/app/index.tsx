@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import MapView, { Polyline } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn, C, Card, Icon, IconName, LevelHeader, num, ResultModal, s, SectionLabel, Stat } from '../components/ui';
 import { dayOf, fmtPace, heldTiles, levelOf, liveStreak, titleOf, weekOf, xpForLevel } from '../lib/game';
+import { useAuth } from '../lib/auth';
+import * as battle from '../lib/battle';
 import { useStore } from '../lib/store';
 import * as tracker from '../lib/tracker';
 
@@ -17,6 +20,18 @@ export default function RunScreen() {
   const [snap, setSnap] = useState(tracker.snapshot());
   const [, tick] = useState(0);
   const mapRef = useRef<MapView>(null);
+  const { userId } = useAuth();
+  // Tiles you actually own on the Battle map (same number as the Territory tab).
+  const [owned, setOwned] = useState<number | null>(null);
+  const runCount = state.runs.length;
+  useFocusEffect(useCallback(() => {
+    if (!userId) { setOwned(null); return; }
+    let live = true;
+    battle.fetchMyTiles()
+      .then((m) => { if (live) setOwned(m.filter((t) => t.owner_id === userId).length); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [userId, runCount]));
 
   useEffect(() => tracker.subscribe(setSnap), []);
   useEffect(() => {
@@ -53,10 +68,11 @@ export default function RunScreen() {
     if (st > 0 && state.lastRunDay === today - 1) out.push(['zap', `Run today to keep your ${st}-day streak`]);
     if (st > 0 && state.lastRunDay === today) out.push(['zap', `${st}-day streak. Run tomorrow to make it ${st + 1}`]);
     if (!state.runs.length) out.push(['flag', 'Finish your first run to start claiming tiles']);
-    const held = Object.keys(heldTiles(state, today)).length;
-    if (held) out.push(['flag', `You hold ${held} tiles. Each fades 30 days after your last run there`]);
+    const ranIn = Object.keys(heldTiles(state, today)).length;
+    if (owned) out.push(['flag', `You hold ${owned} tiles on the Battle map. Keep running there to defend them`]);
+    else if (ranIn) out.push(['flag', `You've run in ${ranIn} tiles. Each fades 30 days after your last run there`]);
     return out;
-  }, [state, today]);
+  }, [state, today, owned]);
 
   const wk = weekOf(today);
   const weekKm = state.runs.filter((r) => !r.flagged && weekOf(dayOf(r.startedAt)) === wk).reduce((m, r) => m + r.km, 0);
@@ -66,7 +82,7 @@ export default function RunScreen() {
       <View style={s.screen}>
         <MapView ref={mapRef} style={{ flex: 1 }} showsUserLocation userInterfaceStyle="dark"
           initialRegion={snap.current ? { ...snap.current, latitudeDelta: 0.008, longitudeDelta: 0.008 } : { latitude: 1.3521, longitude: 103.8198, latitudeDelta: 0.2, longitudeDelta: 0.2 }}>
-          {snap.route.length > 1 && <Polyline coordinates={snap.route} strokeColor={C.acc} strokeWidth={5} />}
+          {snap.segments.map((seg, i) => seg.length > 1 && <Polyline key={i} coordinates={seg} strokeColor={C.acc} strokeWidth={5} />)}
         </MapView>
         <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg, padding: 16 }}>
           <Text style={[{ color: C.txt, fontSize: 56, fontWeight: '600', textAlign: 'center' }, num]}>{km.toFixed(2)}</Text>
@@ -107,7 +123,7 @@ export default function RunScreen() {
         <View style={[s.row, { marginBottom: 12 }]}>
           <Stat value={String(liveStreak(state, today))} label={`day streak${state.freezes ? ` · ${state.freezes} freeze${state.freezes > 1 ? 's' : ''}` : ''}`} />
           <Stat value={weekKm.toFixed(1)} label="km this week" />
-          <Stat value={String(Object.keys(heldTiles(state, today)).length)} label="tiles held" />
+          <Stat value={String(owned ?? Object.keys(heldTiles(state, today)).length)} label={owned !== null ? 'tiles held' : 'tiles run in'} />
         </View>
         <Btn title="Start run" icon="play" onPress={onStart} style={{ paddingVertical: 20, marginBottom: 12 }} />
         <Card style={{ paddingVertical: 8 }}>

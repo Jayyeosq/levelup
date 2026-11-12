@@ -6,6 +6,13 @@ export const DAY_MS = 86_400_000;
 export const TILE_WINDOW_DAYS = 30;
 export const WEEK_SOFT_CAP_KM = 60;
 export const MIN_PACE_MIN_PER_KM = 2.5; // faster than this average = flagged (bike/car)
+// Runs tracked by the phone's GPS have no proof they were on foot, so they get a stricter limit.
+// Watch runs (Apple Health) are recorded as running workouts by the watch.
+export const APP_MIN_PACE_MIN_PER_KM = 3 + 20 / 60; // 3:20/km = 18 km/h, over 2 km or more
+// Personal bests: must be a real step up, and each kind pays out at most once a week.
+export const PB_MIN_KM = 3;
+export const PB_LONG_STEP_KM = 0.5;
+export const PB_PACE_STEP_MIN = 5 / 60; // 5 seconds per km
 
 export type Run = {
   id: string;
@@ -32,7 +39,7 @@ export type GameState = {
   lastRunDay: number | null;
   freezes: number;
   badges: Record<string, number>;
-  bests: { longestKm: number; paceMinKm: number | null };
+  bests: { longestKm: number; paceMinKm: number | null; longWeek?: number | null; paceWeek?: number | null };
   tiles: Record<string, [number, number][]>; // tile -> [day, km][] within window
   visited: Record<string, 1>; // every tile ever run through
 };
@@ -144,6 +151,7 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
   // Anti-cheat: too fast on average or too short to count.
   if (km < 0.2) run.flagged = 'Too short to count (under 200 m)';
   else if (km >= 1 && paceMin < MIN_PACE_MIN_PER_KM) run.flagged = `Average pace ${fmtPace(paceMin)} is faster than a human run, so it doesn't count`;
+  else if (run.source === 'app' && km >= 2 && paceMin < APP_MIN_PACE_MIN_PER_KM) run.flagged = `Average pace ${fmtPace(paceMin)} looks like a bike ride, so it doesn't count`;
   if (run.flagged) {
     breakdown.push([run.flagged, null]);
     s.runs.unshift(run);
@@ -178,10 +186,14 @@ export function processRun(prev: GameState, input: RunInput, nowMs = Date.now())
   if (mult > 1) breakdown.push([multNotes.join(' · '), xp - Math.round(base)]);
 
   // Personal bests.
-  if (s.runs.some((r) => !r.flagged) && km > s.bests.longestKm) { xp += 100; breakdown.push(['Longest run PB', 100]); }
+  if (s.runs.some((r) => !r.flagged) && km >= PB_MIN_KM && km >= s.bests.longestKm + PB_LONG_STEP_KM && s.bests.longWeek !== wk) {
+    xp += 100; breakdown.push(['Longest run PB', 100]); s.bests.longWeek = wk;
+  }
   s.bests.longestKm = Math.max(s.bests.longestKm, km);
   if (km >= 3) {
-    if (s.bests.paceMinKm !== null && paceMin < s.bests.paceMinKm) { xp += 100; breakdown.push([`Fastest pace PB (${fmtPace(paceMin)})`, 100]); }
+    if (s.bests.paceMinKm !== null && paceMin <= s.bests.paceMinKm - PB_PACE_STEP_MIN && s.bests.paceWeek !== wk) {
+      xp += 100; breakdown.push([`Fastest pace PB (${fmtPace(paceMin)})`, 100]); s.bests.paceWeek = wk;
+    }
     if (s.bests.paceMinKm === null || paceMin < s.bests.paceMinKm) s.bests.paceMinKm = paceMin;
   }
 

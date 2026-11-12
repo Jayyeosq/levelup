@@ -37,7 +37,8 @@ export default function ProfileScreen() {
       const lines: string[] = [];
       if (!found) {
         lines.push(`No running workouts found in Apple Health for the last ${days} days.`,
-          'If you use Garmin, Coros or another watch, turn on Apple Health syncing in that watch\'s app. If you track runs with Strava only, those can\'t be used here.');
+          'If you use Garmin, Coros or another watch, turn on Apple Health syncing in that watch\'s app. If you track runs with Strava only, those can\'t be used here.',
+          'If you do have runs there, check iPhone Settings → Health → Data Access & Devices → LevelUp+ and turn on Workouts and Workout Routes.');
       } else {
         lines.push(`Found ${found} run${found > 1 ? 's' : ''} in Apple Health${sources.length ? ` (from ${sources.slice(0, 3).join(', ')})` : ''}.`);
         if (r.added) lines.push(`${r.added} new run${r.added > 1 ? 's' : ''} added.`);

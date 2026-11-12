@@ -12,12 +12,12 @@ const XP_RULES: [string, string][] = [
   ['Past 60 km in a week', 'Half rate'],
   ['Each day of your streak', '+10%, max +50%'],
   ['Start before 8am', '+20%'],
-  ['Longest run PB', '+100'],
-  ['Pace PB, 3 km or more', '+100'],
+  ['Longest run PB (3 km+, once a week)', '+100'],
+  ['Pace PB (3 km+, once a week)', '+100'],
   ['Each new tile', '+5'],
   ['Each new badge', '+50'],
   ['Every 7-day streak', '1 freeze, max 2'],
-  ['Faster than 2:30/km on average', 'Not counted'],
+  ['Too fast to be a run (bike or car)', 'Not counted'],
 ];
 
 export default function Progress() {
@@ -81,7 +81,8 @@ export default function Progress() {
           ))}
         </Card>
 
-        <SectionLabel>Tester tools</SectionLabel>
+        {__DEV__ && (<>
+        <SectionLabel>Developer tools</SectionLabel>
         <Card>
           <Text style={[s.sub, { marginTop: 0, marginBottom: 12 }]}>Adds a fake 3–9 km run starting where you are, to test levels, badges and tiles indoors. Test runs are marked Test in History.</Text>
           <View style={s.row}>
@@ -89,6 +90,7 @@ export default function Progress() {
             <Btn title="Reset all" kind="ghost" onPress={confirmReset} style={{ flex: 1 }} />
           </View>
         </Card>
+        </>)}
       </ScrollView>
       <ResultModal result={lastResult} onClose={clearResult} />
       <HistoryModal visible={historyOpen} onClose={() => setHistoryOpen(false)} />

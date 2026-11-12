@@ -15,6 +15,10 @@ type AuthCtx = {
   signUp: (email: string, username: string, password: string) => Promise<'signed_in' | 'confirm_email'>;
   signIn: (emailOrUsername: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Emails a reset code. */
+  sendReset: (email: string) => Promise<void>;
+  /** Checks the emailed code, sets the new password and logs you in. */
+  resetPassword: (email: string, code: string, password: string) => Promise<void>;
 };
 const Ctx = createContext<AuthCtx | null>(null);
 
@@ -73,6 +77,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
 
     async signOut() { await supabase.auth.signOut(); },
+
+    async sendReset(email) {
+      if (!supabaseReady) throw new Error('The app is not connected to the server yet.');
+      if (!/^\S+@\S+\.\S+$/.test(email.trim())) throw new Error('Enter the email you signed up with.');
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (error) throw new Error(/rate limit|security purposes/i.test(error.message) ? 'Please wait a minute before asking for another code.' : friendly(error.message));
+    },
+
+    async resetPassword(email, code, password) {
+      if (!supabaseReady) throw new Error('The app is not connected to the server yet.');
+      if (!/^\d{6,10}$/.test(code.trim())) throw new Error('Enter the code from the email (numbers only).');
+      if (password.length < 8) throw new Error('Password must be at least 8 characters.');
+      // A correct code logs you in; then the new password is saved.
+      const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'recovery' });
+      if (error) throw new Error(/expired|invalid/i.test(error.message) ? 'That code is wrong or has expired. Ask for a new one.' : friendly(error.message));
+      const { error: e2 } = await supabase.auth.updateUser({ password });
+      if (e2 && !/different from the old/i.test(e2.message)) throw new Error(friendly(e2.message));
+    },
   }), [loading, session]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

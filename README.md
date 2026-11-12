@@ -50,12 +50,12 @@ LevelUp+ is a running app for Singapore with game mechanics. Every km earns XP, 
 | Every km | **10 XP**, halved after 60 km in a week |
 | Streak | +10% per day in a row, up to +50% |
 | Run started before 8am | +20% |
-| Longest-run personal best | +100 |
-| Fastest-pace personal best (3 km+) | +100 |
+| Longest-run personal best (3 km+, by 0.5 km or more, once a week) | +100 |
+| Fastest-pace personal best (3 km+, by 5 sec/km or more, once a week) | +100 |
 | A tile you've never run in before | +5 each |
 | A new badge | +50 |
 
-**Anti-cheat:** GPS jumps are filtered out, and a run that averages faster than 2:30/km (likely a car or bike) earns nothing.
+**Anti-cheat:** GPS jumps are filtered out, and a run that averages faster than 2:30/km earns nothing. Runs tracked by the phone's GPS (not a watch) have a stricter limit of 3:20/km over 2 km or more, to keep out bike rides.
 
 ### Levels and titles
 

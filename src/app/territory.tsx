@@ -238,7 +238,7 @@ export default function Territory() {
       </SafeAreaView>
 
       {mode === 'battle' && (
-        <View style={{ position: 'absolute', bottom: 12, left: 12, right: 12, gap: 6 }} pointerEvents="none">
+        <View style={{ position: 'absolute', bottom: 40, left: 12, right: 12, gap: 6 }} pointerEvents="none">{/* 40: leaves Apple's logo and Legal link visible */}
           {!tooFar && tiles.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
               {(['mine', 'attack', 'lost', 'reach', 'rival'] as const).filter((k) => counts[k] > 0 || k === 'mine').map((k) => {
