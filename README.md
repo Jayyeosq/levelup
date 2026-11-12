@@ -17,6 +17,7 @@ LevelUp+ is a running app for Singapore with game mechanics. Every km earns XP, 
 ## Contents
 
 - [Features](#features)
+- [First run](#first-run)
 - [How the game works](#how-the-game-works)
 - [Area Battle: how tiles work](#area-battle-how-tiles-work)
 - [Where runs come from](#where-runs-come-from)
@@ -36,8 +37,22 @@ LevelUp+ is a running app for Singapore with game mechanics. Every km earns XP, 
 | **Run** | Live GPS tracking: distance, time, pace and your route. Pause and resume. In the app build it keeps tracking with the screen locked. Shows progress toward your weekly km goal. |
 | **Territory** | **Battle**: the shared map of who holds every tile, with steal alerts and a Kings list per town. **My tiles**: every tile you've run in during the last 30 days. |
 | **Community** | Add friends by username, see a friends-only feed of runs, level-ups and badges with kudos, and a weekly XP leaderboard (Friends / My town / All Singapore, resets Monday). |
-| **Progress** | Level, title, XP bar, badges and streak freezes. Run history (long-press a run to delete it; everything is recalculated). Tester tools. |
-| **Profile** | Username, avatar, home town and weekly goal. Account, Apple Health and Strava connections. |
+| **Progress** | Level, title, XP bar, and badges that show how close you are to the ones you haven't earned. Run history (long-press a run to delete it; everything is recalculated). |
+| **Profile** | Username, avatar, home town and weekly goal. Tile alerts, Apple Health and Strava connections, and your account (including forgot-password). |
+
+---
+
+## First run
+
+New runners get a three-screen intro, then pick the home town they'll defend. Others only ever see a username; routes stay private.
+
+<p align="center">
+  <img src="docs/images/intro-1-xp.png" width="245" alt="Intro: every run earns XP">
+  &nbsp;
+  <img src="docs/images/intro-2-level.png" width="245" alt="Intro: level up from Shuffler to Legend">
+  &nbsp;
+  <img src="docs/images/intro-3-territory.png" width="245" alt="Intro: take your neighbourhood">
+</p>
 
 ---
 
@@ -87,7 +102,7 @@ Singapore is covered in hexagons about **156 m across**. Your GPS route is cut i
 - A tile belongs to **whoever ran the most km in it over the last 30 days**. Old runs drop off by themselves, so you have to keep defending your turf.
 - To take a tile you need just over the owner's km. Tap any tile to see the exact gap.
 - Whoever holds the most tiles in a town is its **King**.
-- When someone takes your tiles, you get an alert the next time you open the map, and the lost tiles show in red.
+- When a rival is close to taking your tiles, or takes them, you get a push notification (at most a few a day). The lost tiles also show in red the next time you open the map.
 
 ![What each tile colour means](docs/images/tile-rules.svg)
 
@@ -103,10 +118,16 @@ Singapore is covered in hexagons about **156 m across**. Your GPS route is cut i
 
 Apple Health imports 90 days of runs when you connect, then syncs the last 14 days each time you open the app. Workouts written by Strava are skipped, and a run that appears in more than one source only counts once. If a run comes in from both Strava and Apple Health, the Apple Health copy replaces the Strava one so it can count publicly.
 
+A run recorded in the app shows its reward screen the moment you finish. A watch run arrives in the background, so when it syncs LevelUp+ shows a **"While you were away"** summary instead: the XP earned, any level-up, and what it did on the Battle map.
+
 <p align="center">
   <img src="docs/images/health-consent.png" width="300" alt="Apple Health consent screen explaining what is shared">
   &nbsp;&nbsp;
   <img src="docs/images/profile-sources.png" width="300" alt="Profile tab with the Apple Health and Strava connections">
+</p>
+
+<p align="center">
+  <img src="docs/images/while-away.png" width="300" alt="While you were away: +51 XP, Level 28, took 5 tiles and defended 16">
 </p>
 
 ---
@@ -224,7 +245,9 @@ docs/images/                images used in this README
 - [x] Area Battle: shared map, Kings, steal alerts, under-attack and within-reach tiles
 - [x] Apple Health import, plus Strava for personal XP
 - [x] Bots for UX testing
-- [ ] Push notifications: "your tile is under attack" and "your tile was taken"
+- [x] Onboarding intro and home-town pick, forgot-password, badge progress
+- [x] Push notifications: "your tile is under attack" and "your tile was taken"
+- [x] Reward screen for synced watch runs, step-count check, run-crash recovery
 - [ ] TestFlight for the first 10–20 testers
 - [ ] Android with Health Connect
 - [ ] Server-side XP, Apple/Google sign-in and a privacy policy
