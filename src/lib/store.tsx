@@ -6,7 +6,7 @@ import { useAuth } from './auth';
 import { fetchRunBattle } from './battle';
 import * as cloud from './cloud';
 import { deleteActivitiesForRun, deleteAllMyActivities, postActivities } from './community';
-import { deleteRun, GameState, importRuns, levelOf, newState, processRun, rebuild, Run, RunInput, RunResult } from './game';
+import { Badge, BADGES, deleteRun, GameState, importRuns, levelOf, newState, processRun, rebuild, Run, RunBattle, RunInput, RunResult, titleOf } from './game';
 import { distanceM, kmPerTile, LatLng, simplify } from './geo';
 
 const KEY = 'stravaplus.game.v1';
@@ -18,12 +18,21 @@ export const defaultProfile: Profile = { name: '', avatar: '🏃', homeTown: '',
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced' | 'error';
 
+/** What watch runs earned when they synced in the background. */
+export type SyncSummary = {
+  id: number; runs: number; km: number; xp: number;
+  levelBefore: number; levelAfter: number; title: string; newTitle: boolean;
+  badges: Badge[]; battle: RunBattle | null;
+};
+
 type Ctx = {
   ready: boolean;
   state: GameState;
   lastResult: RunResult | null;
   addRun: (r: RunInput) => RunResult;
-  importRuns: (rs: RunInput[]) => { added: number; upgraded: number; duplicates: number; xpGained: number };
+  importRuns: (rs: RunInput[], opts?: { announce?: boolean }) => { added: number; upgraded: number; duplicates: number; xpGained: number };
+  syncSummary: SyncSummary | null;
+  clearSyncSummary: () => void;
   profile: Profile;
   setProfile: (p: Partial<Profile>) => void;
   removeRun: (id: string) => void;
@@ -46,6 +55,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [lastResult, setLastResult] = useState<RunResult | null>(null);
   const [profile, setProfileState] = useState<Profile>(defaultProfile);
   const [sync, setSync] = useState<SyncStatus>('offline');
+  const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
   const stateRef = useRef(state);
   stateRef.current = state;
   const userRef = useRef<string | null>(null);
@@ -147,20 +157,52 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return result;
   }, [persist, pushStats]);
 
-  const doImport = useCallback((rs: RunInput[]) => {
-    const before = new Set(stateRef.current.runs.map((r) => r.id));
-    const r = importRuns(stateRef.current, rs);
+  const doImport = useCallback((rs: RunInput[], opts?: { announce?: boolean }) => {
+    const prev = stateRef.current;
+    const before = new Set(prev.runs.map((r) => r.id));
+    const r = importRuns(prev, rs);
     if (r.added || r.upgraded) {
       persist(r.state);
+      const replaced = new Set(r.replaced);
+      const freshRuns = r.state.runs.filter((x) => !before.has(x.id) || replaced.has(x.id));
+      const counted = freshRuns.filter((x) => !x.flagged);
+
+      // Background sync of watch runs: show what they earned ("While you were away").
+      let sumId: number | null = null;
+      if (opts?.announce && counted.length) {
+        sumId = Date.now();
+        const lb = levelOf(prev.xp), la = levelOf(r.state.xp);
+        setSyncSummary({
+          id: sumId, runs: counted.length, km: counted.reduce((m, x) => m + x.km, 0), xp: Math.max(0, r.xpGained),
+          levelBefore: lb, levelAfter: la, title: titleOf(la), newTitle: titleOf(la) !== titleOf(lb),
+          badges: BADGES.filter((bd) => r.state.badges[bd.id] && !prev.badges[bd.id]), battle: null,
+        });
+      }
+
       if (userRef.current) {
-        const replaced = new Set(r.replaced);
-        const freshRuns = r.state.runs.filter((x) => !before.has(x.id) || replaced.has(x.id));
         const fresh = freshRuns.map((x) => cloud.toRow({ ...toInput(x), xp: x.xp } as any));
         // Remove the Strava copies that were replaced first, then upload the new runs.
         Promise.all(r.replaced.map((id) => cloud.deleteRunCloud(id)))
           .then(() => cloud.uploadRuns(fresh))
           .then(() => {
             pushStats(r.state);
+            // The server has now worked out what these runs did on the Battle map: add it to the summary.
+            if (sumId !== null) {
+              const id = sumId;
+              Promise.all(counted.slice(0, 12).map((x) => fetchRunBattle(x.id).catch(() => null))).then((list) => {
+                const tot: RunBattle = { captured: 0, capturedFrom: null, claimed: 0, defended: 0, contested: 0 };
+                const from = new Map<string, number>();
+                for (const bt of list) {
+                  if (!bt) continue;
+                  tot.captured += bt.captured; tot.claimed += bt.claimed;
+                  // The same tile can be defended (or missed) by several runs: count it once.
+                  tot.defended = Math.max(tot.defended, bt.defended); tot.contested = Math.max(tot.contested, bt.contested);
+                  if (bt.capturedFrom) from.set(bt.capturedFrom, (from.get(bt.capturedFrom) ?? 0) + bt.captured);
+                }
+                tot.capturedFrom = [...from.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
+                setSyncSummary((cur) => (cur && cur.id === id ? { ...cur, battle: tot } : cur));
+              });
+            }
             // Watch runs from Apple Health in the last 3 days also go to friends' feeds
             const recent = freshRuns.filter((x) => x.source === 'health' && !x.flagged && x.startedAt > Date.now() - 3 * 86_400_000);
             return postActivities(recent.map((x) => ({ kind: 'run' as const, run_client_id: x.id, data: { km: x.km, xp: x.xp, duration_sec: x.durationSec, via: 'watch' } })));
@@ -203,7 +245,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Ctx>(() => ({
     ready, state, lastResult, addRun, importRuns: doImport, profile, setProfile, removeRun,
     clearResult: () => setLastResult(null), reset, sync, resync,
-  }), [ready, state, lastResult, addRun, doImport, profile, setProfile, removeRun, reset, sync, resync]);
+    syncSummary, clearSyncSummary: () => setSyncSummary(null),
+  }), [ready, state, lastResult, addRun, doImport, profile, setProfile, removeRun, reset, sync, resync, syncSummary]);
 
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;
 }

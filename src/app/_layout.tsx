@@ -5,6 +5,7 @@ import AuthScreen from '../components/AuthScreen';
 import HealthSync from '../components/HealthSync';
 import HomeTownPrompt from '../components/HomeTownPrompt';
 import PushSync from '../components/PushSync';
+import SyncSummary from '../components/SyncSummary';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { usePendingRequests } from '../lib/community';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -56,6 +57,7 @@ export default function RootLayout() {
         <HealthSync />
         <PushSync />
         <HomeTownPrompt />
+        <SyncSummary />
         <AuthGate />
       </StoreProvider>
       </AuthProvider>
