@@ -29,6 +29,8 @@ function Avatar({ a, size = 40 }: { a: string; size?: number }) {
 
 export default function Community() {
   const [seg, setSeg] = useState<Seg>('feed');
+  const { userId } = useAuth();
+  const requests = cm.usePendingRequests(userId);
   return (
     <SafeAreaView edges={['top']} style={s.screen}>
       <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
@@ -37,7 +39,7 @@ export default function Community() {
           {SEGS.map(([k, label, icon]) => (
             <Pressable key={k} onPress={() => setSeg(k)} style={{ flex: 1, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 9, backgroundColor: seg === k ? C.acc : 'transparent' }}>
               <Icon name={icon} size={15} color={seg === k ? C.onAcc : C.sec} />
-              <Text style={{ color: seg === k ? C.onAcc : C.sec, fontWeight: '600', fontSize: 13 }}>{label}</Text>
+              <Text style={{ color: seg === k ? C.onAcc : C.sec, fontWeight: '600', fontSize: 13 }}>{label}{k === 'friends' && requests > 0 ? ` · ${requests}` : ''}</Text>
             </Pressable>
           ))}
         </View>

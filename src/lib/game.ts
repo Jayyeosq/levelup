@@ -97,20 +97,26 @@ export function pruneTiles(s: GameState, today: number) {
 // ---------- badges ----------
 const maxRun = (s: GameState) => s.runs.reduce((m, r) => (r.flagged ? m : Math.max(m, r.km)), 0);
 const totalKm = (s: GameState) => s.runs.reduce((m, r) => (r.flagged ? m : m + r.km), 0);
-export type Badge = { id: string; label?: string; icon?: string; name: string; desc: string; test: (s: GameState, today: number) => boolean };
+export type BadgeProgress = { cur: number; goal: number; unit: string };
+export type Badge = {
+  id: string; label?: string; icon?: string; name: string; desc: string;
+  test: (s: GameState, today: number) => boolean;
+  /** How far along you are, for badges with a number to reach. */
+  progress?: (s: GameState, today: number) => BadgeProgress;
+};
 export const BADGES: Badge[] = [
   { id: 'first', icon: 'play', name: 'First Steps', desc: 'Finish your first run', test: (s) => s.runs.some((r) => !r.flagged) },
-  { id: 'k5', label: '5K', name: '5K Club', desc: 'Run 5 km in one go', test: (s) => maxRun(s) >= 5 },
-  { id: 'k10', label: '10K', name: 'Double Digits', desc: 'Run 10 km in one go', test: (s) => maxRun(s) >= 10 },
-  { id: 'half', label: '21K', name: 'Half Marathoner', desc: 'Run 21.1 km in one go', test: (s) => maxRun(s) >= 21.1 },
-  { id: 's3', label: '3d', name: 'On Fire', desc: '3-day streak', test: (s) => s.bestStreak >= 3 },
-  { id: 's7', label: '7d', name: 'Unstoppable', desc: '7-day streak', test: (s) => s.bestStreak >= 7 },
+  { id: 'k5', label: '5K', name: '5K Club', desc: 'Run 5 km in one go', test: (s) => maxRun(s) >= 5, progress: (s) => ({ cur: maxRun(s), goal: 5, unit: 'km' }) },
+  { id: 'k10', label: '10K', name: 'Double Digits', desc: 'Run 10 km in one go', test: (s) => maxRun(s) >= 10, progress: (s) => ({ cur: maxRun(s), goal: 10, unit: 'km' }) },
+  { id: 'half', label: '21K', name: 'Half Marathoner', desc: 'Run 21.1 km in one go', test: (s) => maxRun(s) >= 21.1, progress: (s) => ({ cur: maxRun(s), goal: 21.1, unit: 'km' }) },
+  { id: 's3', label: '3d', name: 'On Fire', desc: '3-day streak', test: (s) => s.bestStreak >= 3, progress: (s) => ({ cur: s.bestStreak, goal: 3, unit: 'days' }) },
+  { id: 's7', label: '7d', name: 'Unstoppable', desc: '7-day streak', test: (s) => s.bestStreak >= 7, progress: (s) => ({ cur: s.bestStreak, goal: 7, unit: 'days' }) },
   { id: 'early', icon: 'sunrise', name: 'Sunrise Runner', desc: 'Start a run before 8am', test: (s) => s.runs.some((r) => r.early && !r.flagged) },
-  { id: 't50', label: '50', name: '50 km Total', desc: 'Run 50 km overall', test: (s) => totalKm(s) >= 50 },
-  { id: 't100', label: '100', name: 'Century', desc: 'Run 100 km overall', test: (s) => totalKm(s) >= 100 },
-  { id: 'land', icon: 'flag', name: 'Land Grabber', desc: 'Hold 10 tiles at once', test: (s, t) => Object.keys(heldTiles(s, t)).length >= 10 },
-  { id: 'explorer', icon: 'compass', name: 'Explorer', desc: 'Run through 50 different tiles', test: (s) => Object.keys(s.visited).length >= 50 },
-  { id: 'towns', icon: 'map', name: 'Town Hopper', desc: 'Hold tiles in 3 different towns', test: (s, t) => areasHeld(s, t).length >= 3 },
+  { id: 't50', label: '50', name: '50 km Total', desc: 'Run 50 km overall', test: (s) => totalKm(s) >= 50, progress: (s) => ({ cur: totalKm(s), goal: 50, unit: 'km' }) },
+  { id: 't100', label: '100', name: 'Century', desc: 'Run 100 km overall', test: (s) => totalKm(s) >= 100, progress: (s) => ({ cur: totalKm(s), goal: 100, unit: 'km' }) },
+  { id: 'land', icon: 'flag', name: 'Land Grabber', desc: 'Hold 10 tiles at once', test: (s, t) => Object.keys(heldTiles(s, t)).length >= 10, progress: (s, t) => ({ cur: Object.keys(heldTiles(s, t)).length, goal: 10, unit: 'tiles' }) },
+  { id: 'explorer', icon: 'compass', name: 'Explorer', desc: 'Run through 50 different tiles', test: (s) => Object.keys(s.visited).length >= 50, progress: (s) => ({ cur: Object.keys(s.visited).length, goal: 50, unit: 'tiles' }) },
+  { id: 'towns', icon: 'map', name: 'Town Hopper', desc: 'Hold tiles in 3 different towns', test: (s, t) => areasHeld(s, t).length >= 3, progress: (s, t) => ({ cur: areasHeld(s, t).length, goal: 3, unit: 'towns' }) },
 ];
 
 // ---------- streak ----------

@@ -1,7 +1,36 @@
 // Community: friends, activity feed, kudos, weekly leaderboard.
 // Everything here is limited by the database privacy rules (0002_community.sql):
 // you only ever get usernames, never emails or routes.
+import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { supabase } from './supabase';
+
+// ---------- friend requests waiting for you (badge on the Community tab) ----------
+let pending = 0;
+const pendingSubs = new Set<(n: number) => void>();
+const setPending = (n: number) => { pending = n; pendingSubs.forEach((f) => f(n)); };
+
+export async function refreshRequests(me: string | null): Promise<void> {
+  if (!me) { setPending(0); return; }
+  const { count, error } = await supabase.from('friendships').select('id', { count: 'exact', head: true }).eq('addressee', me).eq('status', 'pending');
+  if (!error) setPending(count ?? 0);
+}
+
+/** Number of incoming friend requests. With `poll`, also keeps it fresh (use once, in the tab bar). */
+export function usePendingRequests(me: string | null, poll = false): number {
+  const [n, setN] = useState(pending);
+  useEffect(() => {
+    pendingSubs.add(setN);
+    setN(pending);
+    if (!poll) return () => { pendingSubs.delete(setN); };
+    const go = () => { refreshRequests(me).catch(() => {}); };
+    go();
+    const t = setInterval(() => { if (AppState.currentState === 'active') go(); }, 60_000);
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') go(); });
+    return () => { pendingSubs.delete(setN); clearInterval(t); sub.remove(); };
+  }, [me, poll]);
+  return n;
+}
 
 export type Runner = { id: string; username: string; avatar: string; home_town: string | null; level: number };
 
@@ -20,6 +49,7 @@ export async function listFriendships(me: string): Promise<FriendRow[]> {
   const { data, error } = await supabase.from('friendships').select('id, status, requester, addressee').order('created_at', { ascending: false });
   if (error) throw error;
   const rows = data ?? [];
+  setPending(rows.filter((r) => r.status === 'pending' && r.addressee === me).length); // keeps the tab badge in step
   const ids = [...new Set(rows.map((r) => (r.requester === me ? r.addressee : r.requester)))];
   if (!ids.length) return [];
   const { data: profs, error: e2 } = await supabase.from('profiles').select('id, username, avatar, home_town, level').in('id', ids);

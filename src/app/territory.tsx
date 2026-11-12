@@ -195,37 +195,6 @@ export default function Territory() {
                     <Text style={{ color: C.acc, fontWeight: '500', fontSize: 13, flex: 1 }}>Get alerts when rivals attack your tiles</Text>
                   </Pressable>
                 )}
-                {mode === 'battle' && sel && (
-                  <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line }}>
-                    <Pressable onPress={() => setSel(null)} hitSlop={12} style={{ position: 'absolute', right: 0, top: 8, zIndex: 2 }}>
-                      <Icon name="x" color={C.mut} size={18} />
-                    </Pressable>
-                    {selTile ? (() => {
-                      const k = battle.tileKind(selTile, lostSet);
-                      const gap = (selTile.owner_km - selTile.my_km + 0.05).toFixed(2);
-                      return (
-                        <>
-                          <Text style={[s.txt, num]}>
-                            <Text style={{ fontWeight: '600' }}>{selTile.is_mine ? 'Your tile' : `${selTile.avatar} @${selTile.username}'s tile`}</Text>
-                            {' · '}{areaOfTile(selTile.tile_id)}
-                          </Text>
-                          <Text style={[s.sub, num]}>
-                            {selTile.is_mine
-                              ? selTile.runner_up_name
-                                ? `You ${selTile.owner_km} km · @${selTile.runner_up_name} ${selTile.runner_up_km} km${k === 'attack' ? ' · under attack, run here to defend it' : ''}`
-                                : `You ran ${selTile.owner_km} km here in 30 days · no rivals yet`
-                              : `@${selTile.username} ${selTile.owner_km} km · you ${selTile.my_km} km · run ${gap} km more here to take it`}
-                          </Text>
-                        </>
-                      );
-                    })() : (
-                      <>
-                        <Text style={[s.txt, { fontWeight: '600' }]}>Unclaimed · {areaOfTile(sel)}</Text>
-                        <Text style={s.sub}>Nobody has run here in 30 days. Run through it to take it.</Text>
-                      </>
-                    )}
-                  </View>
-                )}
               </>
             ) : (
               <>
@@ -247,7 +216,42 @@ export default function Territory() {
         </View>
       </SafeAreaView>
 
-      {mode === 'battle' && (
+      {/* Details of the tile you tapped, at thumb height */}
+      {mode === 'battle' && sel && (
+        <View style={{ position: 'absolute', bottom: 40, left: 12, right: 12 }} pointerEvents="box-none">
+          <View style={[s.card, { marginBottom: 0, paddingRight: 44 }]}>
+          <Pressable onPress={() => setSel(null)} hitSlop={12} style={{ position: 'absolute', right: 14, top: 14, zIndex: 2 }}>
+            <Icon name="x" color={C.mut} size={18} />
+          </Pressable>
+          {selTile ? (() => {
+            const k = battle.tileKind(selTile, lostSet);
+            const gap = (selTile.owner_km - selTile.my_km + 0.05).toFixed(2);
+            return (
+              <>
+                <Text style={[s.txt, num]}>
+                  <Text style={{ fontWeight: '600' }}>{selTile.is_mine ? 'Your tile' : `${selTile.avatar} @${selTile.username}'s tile`}</Text>
+                  {' · '}{areaOfTile(selTile.tile_id)}
+                </Text>
+                <Text style={[s.sub, num]}>
+                  {selTile.is_mine
+                    ? selTile.runner_up_name
+                      ? `You ${selTile.owner_km} km · @${selTile.runner_up_name} ${selTile.runner_up_km} km${k === 'attack' ? ' · under attack, run here to defend it' : ''}`
+                      : `You ran ${selTile.owner_km} km here in 30 days · no rivals yet`
+                    : `@${selTile.username} ${selTile.owner_km} km · you ${selTile.my_km} km · run ${gap} km more here to take it`}
+                </Text>
+              </>
+            );
+          })() : (
+            <>
+              <Text style={[s.txt, { fontWeight: '600' }]}>Unclaimed · {areaOfTile(sel)}</Text>
+              <Text style={s.sub}>Nobody has run here in 30 days. Run through it to take it.</Text>
+            </>
+          )}
+          </View>
+        </View>
+      )}
+
+      {mode === 'battle' && !sel && (
         <View style={{ position: 'absolute', bottom: 40, left: 12, right: 12, gap: 6 }} pointerEvents="none">{/* 40: leaves Apple's logo and Legal link visible */}
           {!tooFar && tiles.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>

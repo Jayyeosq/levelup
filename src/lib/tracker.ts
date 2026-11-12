@@ -5,11 +5,14 @@
 //   to foreground tracking and keeps the screen awake.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requireOptionalNativeModule } from 'expo';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { fmtPace } from './game';
 import { distanceM, kmPerTile, LatLng, simplify } from './geo';
+import { localNotify } from './push';
 
 const TASK = 'strava-plus-run-location';
 const MAX_ACCURACY_M = 35;     // ignore fuzzy fixes
@@ -79,10 +82,25 @@ function handle(locs: Location.LocationObject[]) {
     const seg = S.segments[S.segments.length - 1];
     if (seg) seg.push(pt); else S.segments.push([pt]);
     S.last = { p: pt, t: l.timestamp };
+    const kmBefore = Math.floor(S.distanceM / 1000);
     S.distanceM += d; // counted only after the point is safely stored
+    const kmNow = Math.floor(S.distanceM / 1000);
+    if (kmNow > kmBefore) kmCue(kmNow);
   }
   save();
   emit();
+}
+
+// ---------- a cue every km: a buzz with the app open, a notification with the screen locked ----------
+function kmCue(km: number) {
+  try {
+    if (AppState.currentState === 'active') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } else {
+      const sec = (S.activeMs + (S.segmentStart ? Date.now() - S.segmentStart : 0)) / 1000;
+      localNotify(`${km} km`, `Average pace ${fmtPace(sec / 60 / (S.distanceM / 1000))}`);
+    }
+  } catch { /* never interrupt tracking */ }
 }
 
 // ---------- keeping the run safe if the app is closed mid-run ----------

@@ -54,8 +54,12 @@ export default function RunScreen() {
   const onFinish = () => {
     Alert.alert('Finish run?', `${km.toFixed(2)} km in ${fmtTime(live.elapsedSec)}`, [
       { text: 'Keep running', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: () => tracker.discard() },
       { text: 'Finish & save', onPress: async () => { const run = await tracker.finish(); addRun(run); } },
+      // Discarding needs a second, separate confirmation so a run is never lost by a slip of the thumb.
+      { text: 'Discard run…', style: 'destructive', onPress: () => Alert.alert('Discard this run?', `${km.toFixed(2)} km will be deleted and can't be recovered.`, [
+        { text: 'Keep it', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => tracker.discard() },
+      ]) },
     ]);
   };
 

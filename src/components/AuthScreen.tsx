@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { USERNAME_RE, useAuth } from '../lib/auth';
 import { supabaseReady } from '../lib/supabase';
+import Intro from './Intro';
 import { Btn, C, Hex, Icon, s } from './ui';
+
+const INTRO_KEY = 'levelup.intro.seen';
 
 const input = { backgroundColor: C.card2, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 14, color: C.txt, fontSize: 16, marginBottom: 10 } as const;
 
@@ -45,8 +49,15 @@ export default function AuthScreen() {
     finally { setBusy(false); }
   };
 
+  // First launch on this phone: show the three intro screens before the form.
+  const [intro, setIntro] = useState<boolean | null>(null); // null = still checking
+  useEffect(() => { AsyncStorage.getItem(INTRO_KEY).then((v) => setIntro(v !== '1')).catch(() => setIntro(false)); }, []);
+
   const unameOk = !username || USERNAME_RE.test(username);
   const tab = mode === 'forgot' ? 'login' : mode;
+
+  if (intro === null) return <View style={[s.screen, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, elevation: 100 }]} />;
+  if (intro) return <Intro onDone={() => { setIntro(false); AsyncStorage.setItem(INTRO_KEY, '1').catch(() => {}); }} />;
 
   return (
     <SafeAreaView style={[s.screen, { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, elevation: 100 }]}>

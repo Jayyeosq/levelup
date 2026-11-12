@@ -3,7 +3,7 @@ import { Alert, ScrollView, Text, View } from 'react-native';
 import HistoryModal from '../components/HistoryModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BadgeHex, Btn, C, Card, Icon, LevelHeader, num, ResultModal, s, SectionLabel } from '../components/ui';
-import { BADGES, levelOf, TITLES, xpForLevel } from '../lib/game';
+import { BADGES, dayOf, levelOf, TITLES, xpForLevel } from '../lib/game';
 import { makeTestRun, useStore } from '../lib/store';
 import { currentPosition } from '../lib/tracker';
 
@@ -25,6 +25,7 @@ export default function Progress() {
   const { state, addRun, reset, lastResult, clearResult } = useStore();
   const L = levelOf(state.xp);
   const got = Object.keys(state.badges).length;
+  const today = dayOf(Date.now());
 
   const testRun = async () => {
     const pos = (await currentPosition()) ?? { latitude: 1.3508, longitude: 103.8485 };
@@ -46,11 +47,19 @@ export default function Progress() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {BADGES.map((b) => {
             const on = !!state.badges[b.id];
+            const p = !on && b.progress ? b.progress(state, today) : null;
+            const cur = p ? Math.min(p.cur, p.goal) : 0;
             return (
               <View key={b.id} style={[s.card, { width: '31.5%', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8, marginBottom: 0 }]}>
                 <BadgeHex b={b} on={on} />
                 <Text style={{ color: on ? C.txt : C.sec, fontSize: 12, fontWeight: '500', textAlign: 'center', marginTop: 8 }}>{b.name}</Text>
                 <Text style={{ color: C.mut, fontSize: 11, lineHeight: 14, textAlign: 'center', marginTop: 2 }}>{b.desc}</Text>
+                {p && (
+                  <View style={{ alignSelf: 'stretch', marginTop: 8 }}>
+                    <View style={[s.bar, { marginTop: 0, height: 4 }]}><View style={[s.barFill, { width: `${Math.max(4, (cur / p.goal) * 100)}%`, backgroundColor: C.sec }]} /></View>
+                    <Text style={[num, { color: C.sec, fontSize: 11, textAlign: 'center', marginTop: 4 }]}>{p.unit === 'km' ? cur.toFixed(1) : cur} of {p.goal} {p.unit}</Text>
+                  </View>
+                )}
               </View>
             );
           })}

@@ -89,9 +89,18 @@ export function init(onOpen: () => void): () => void {
     n.setNotificationHandler({
       handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
     });
-    const sub = n.addNotificationResponseReceivedListener(() => onOpen());
+    const isTileAlert = (r: any) => r?.notification?.request?.content?.data?.screen === 'territory';
+    const sub = n.addNotificationResponseReceivedListener((r: any) => { if (isTileAlert(r)) onOpen(); });
     // Opened from a notification while the app was closed
-    if (n.getLastNotificationResponse?.()) { onOpen(); n.clearLastNotificationResponse?.(); }
+    const lastTap = n.getLastNotificationResponse?.();
+    if (lastTap) { if (isTileAlert(lastTap)) onOpen(); n.clearLastNotificationResponse?.(); }
     return () => sub.remove();
   } catch { return () => {}; }
+}
+
+/** A notification shown straight away by the phone itself (used for the per-km cue with the screen locked). */
+export function localNotify(title: string, body: string): void {
+  const n = lib();
+  if (!n) return;
+  try { n.scheduleNotificationAsync({ content: { title, body, sound: true, data: { screen: 'run' } }, trigger: null }).catch(() => {}); } catch { /* optional */ }
 }

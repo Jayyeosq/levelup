@@ -13,7 +13,7 @@ export const C = {
   line2: 'rgba(238,240,244,0.14)',
   txt: '#EEF0F4', // primary text
   sec: '#A3A9B6', // secondary text
-  mut: '#6E7584', // muted text
+  mut: '#858C9B', // muted text (5.6:1 on the background; the old #6E7584 was 4.1:1)
   acc: '#FF6A2B',
   onAcc: '#1A0F08', // text on the accent (white on orange fails contrast)
   good: '#4CC38A',
