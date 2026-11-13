@@ -1,9 +1,10 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import Constants from 'expo-constants';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Btn, C, Card, Icon, s, SectionLabel } from '../components/ui';
-import { levelOf, titleOf } from '../lib/game';
+import { Btn, C, Card, Icon, IconName, num, s, SectionLabel, Stat } from '../components/ui';
+import { BADGES, levelOf, titleOf } from '../lib/game';
 import { TOWNS } from '../lib/geo';
 import { useAuth } from '../lib/auth';
 import { useStore } from '../lib/store';
@@ -15,7 +16,39 @@ import * as push from '../lib/push';
 const AVATARS = ['🏃', '🏃‍♀️', '🦊', '🐯', '🦁', '🐺', '🐼', '🦅', '🐉', '⚡', '🔥', '🚀'];
 const STRAVA_ORANGE = '#FC4C02';
 
-const input = { backgroundColor: C.card2, borderColor: C.line, borderWidth: 1, borderRadius: 12, padding: 12, color: C.txt, fontSize: 15 } as const;
+// One line in a settings group: icon, title, optional status line, and something on the right.
+// `children` is the part that opens underneath when the row is expanded.
+function Row({ icon, iconNode, iconBg = C.card2, iconColor = C.sec, title, titleColor = C.txt, sub, right, onPress, last, children }: {
+  icon?: IconName; iconNode?: React.ReactNode; iconBg?: string; iconColor?: string; title: string; titleColor?: string;
+  sub?: string; right?: React.ReactNode; onPress?: () => void; last?: boolean; children?: React.ReactNode;
+}) {
+  const body = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, minHeight: 64 }}>
+      <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: iconBg, alignItems: 'center', justifyContent: 'center' }}>
+        {iconNode ?? (icon ? <Icon name={icon} size={18} color={iconColor} /> : null)}
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.txt, { fontWeight: '500', color: titleColor }]} numberOfLines={1}>{title}</Text>
+        {!!sub && <Text style={[s.sub, { marginTop: 1 }]}>{sub}</Text>}
+      </View>
+      {right}
+    </View>
+  );
+  return (
+    <View style={!last ? { borderBottomWidth: 1, borderBottomColor: C.line } : undefined}>
+      {onPress ? <Pressable onPress={onPress} style={({ pressed }) => (pressed ? { backgroundColor: C.card2 } : undefined)}>{body}</Pressable> : body}
+      {children}
+    </View>
+  );
+}
+const Group = ({ children }: { children: React.ReactNode }) => <View style={[s.card, { padding: 0, overflow: 'hidden' }]}>{children}</View>;
+const Chevron = ({ open }: { open: boolean }) => <Icon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={C.mut} />;
+const Pill = ({ label, color = C.acc, ink = C.onAcc }: { label: string; color?: string; ink?: string }) => (
+  <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: color }}>
+    <Text style={{ color: ink, fontWeight: '600', fontSize: 13 }}>{label}</Text>
+  </View>
+);
+const stepBtn = { width: 36, height: 36, borderRadius: 10, borderWidth: 1, borderColor: C.line2, alignItems: 'center', justifyContent: 'center' } as const;
 
 export default function ProfileScreen() {
   const { profile, setProfile, state, importRuns, sync, resync } = useStore();
@@ -133,157 +166,133 @@ export default function ProfileScreen() {
 
   const stravaRuns = state.runs.filter((r) => r.source === 'strava').length;
 
+  // ---- Layout ----
+  const [open, setOpen] = useState<'avatar' | 'health' | 'strava' | null>(null); // which row is expanded
+  const toggle = (k: 'avatar' | 'health' | 'strava') => setOpen((o) => (o === k ? null : k));
+  const counted = state.runs.filter((r) => !r.flagged);
+  const totalKm = counted.reduce((m, r) => m + r.km, 0);
+  const fmtWhen = (ms: number) => new Date(ms).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  const logOut = () => Alert.alert('Log out?', 'Your runs are saved in your account.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Log out', style: 'destructive', onPress: async () => { await push.disable(); await signOut(); } },
+  ]);
+
   return (
     <SafeAreaView edges={['top']} style={s.screen}>
       <ScrollView contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
-        {/* Identity */}
-        <View style={{ alignItems: 'center', marginBottom: 8 }}>
-          <Text style={{ fontSize: 64 }}>{profile.avatar}</Text>
-          <Text style={[s.title, { marginTop: 4 }]}>@{profile.name || 'runner'}</Text>
+        {/* Who you are */}
+        <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 16 }}>
+          <Pressable onPress={() => toggle('avatar')} accessibilityLabel="Change your avatar"
+            style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: C.card, borderWidth: 1, borderColor: C.line2, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 52 }}>{profile.avatar}</Text>
+            <View style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: 15, backgroundColor: C.acc, borderWidth: 3, borderColor: C.bg, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="edit-2" size={12} color={C.onAcc} />
+            </View>
+          </Pressable>
+          <Text style={[s.title, { marginTop: 12, fontSize: 22 }]}>@{profile.name || 'runner'}</Text>
           <Text style={s.sub}>Level {L} · {titleOf(L)}{profile.homeTown ? ` · ${profile.homeTown}` : ''}</Text>
         </View>
 
-        <SectionLabel>Profile</SectionLabel>
-        <Card>
-          <Text style={[s.sub, { marginTop: 0, marginBottom: 8 }]}>Username (public)</Text>
-          <View style={[input, { opacity: 0.8 }]}><Text style={{ color: C.txt, fontSize: 15 }}>@{profile.name || '…'}</Text></View>
+        {open === 'avatar' && (
+          <Card>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {AVATARS.map((a) => (
+                <Pressable key={a} onPress={() => { setProfile({ avatar: a }); setOpen(null); }}
+                  style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card2, borderWidth: 2, borderColor: profile.avatar === a ? C.acc : 'transparent' }}>
+                  <Text style={{ fontSize: 24 }}>{a}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Card>
+        )}
 
-          <Text style={[s.sub, { marginTop: 16, marginBottom: 8 }]}>Avatar</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {AVATARS.map((a) => (
-              <Pressable key={a} onPress={() => setProfile({ avatar: a })}
-                style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card2, borderWidth: 2, borderColor: profile.avatar === a ? C.acc : 'transparent' }}>
-                <Text style={{ fontSize: 24 }}>{a}</Text>
-              </Pressable>
-            ))}
-          </View>
+        <View style={s.row}>
+          <Stat value={totalKm >= 100 ? Math.round(totalKm).toLocaleString() : totalKm.toFixed(1)} label="km run" />
+          <Stat value={String(counted.length)} label="runs" />
+          <Stat value={`${Object.keys(state.badges).length}/${BADGES.length}`} label="badges" />
+        </View>
 
-          <Text style={[s.sub, { marginTop: 16, marginBottom: 8 }]}>Home town, your turf to defend</Text>
-          <Pressable onPress={() => setTownsOpen(true)} style={input}>
-            <Text style={{ color: profile.homeTown ? C.txt : C.mut, fontSize: 15 }}>{profile.homeTown || 'Choose your town'}</Text>
-          </Pressable>
+        <SectionLabel>Your game</SectionLabel>
+        <Group>
+          <Row icon="map-pin" title="Home town" sub="Your turf to defend" onPress={() => setTownsOpen(true)}
+            right={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ color: profile.homeTown ? C.txt : C.acc, fontSize: 15, fontWeight: '500' }}>{profile.homeTown || 'Choose'}</Text>
+              <Icon name="chevron-right" size={18} color={C.mut} />
+            </View>} />
+          <Row icon="target" title="Weekly goal" sub="Shown on the Run tab" last
+            right={<View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable onPress={() => setProfile({ weeklyGoalKm: Math.max(5, profile.weeklyGoalKm - 5) })} hitSlop={6} accessibilityLabel="Lower weekly goal" style={stepBtn}><Icon name="minus" size={16} color={C.txt} /></Pressable>
+              <Text style={[num, { color: C.txt, fontSize: 16, fontWeight: '600', width: 64, textAlign: 'center' }]}>{profile.weeklyGoalKm} km</Text>
+              <Pressable onPress={() => setProfile({ weeklyGoalKm: Math.min(150, profile.weeklyGoalKm + 5) })} hitSlop={6} accessibilityLabel="Raise weekly goal" style={stepBtn}><Icon name="plus" size={16} color={C.txt} /></Pressable>
+            </View>} />
+        </Group>
 
-          <Text style={[s.sub, { marginTop: 16, marginBottom: 8 }]}>Weekly goal</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Btn title="−" kind="ghost" onPress={() => setProfile({ weeklyGoalKm: Math.max(5, profile.weeklyGoalKm - 5) })} style={{ width: 56 }} />
-            <Text style={[s.title, { flex: 1, textAlign: 'center' }]}>{profile.weeklyGoalKm} km</Text>
-            <Btn title="+" kind="ghost" onPress={() => setProfile({ weeklyGoalKm: Math.min(150, profile.weeklyGoalKm + 5) })} style={{ width: 56 }} />
-          </View>
-        </Card>
+        <SectionLabel>Alerts and connections</SectionLabel>
+        <Group>
+          <Row icon={pushState === 'on' ? 'bell' : 'bell-off'} iconColor={pushState === 'on' ? C.acc : C.sec} title="Tile alerts"
+            sub={pushState === 'unsupported' ? 'Needs the newest LevelUp+ app build'
+              : pushState === 'blocked' ? 'Turned off for LevelUp+ in iPhone Settings'
+              : 'When a rival is close to taking your tiles, or takes them'}
+            onPress={pushState === 'blocked' ? () => Linking.openSettings() : undefined}
+            right={pushState === 'blocked' ? <Pill label="Settings" color={C.card2} ink={C.txt} />
+              : pushState === 'unsupported' ? undefined
+              : <Switch value={pushState === 'on'} onValueChange={(v) => (v ? pushOn() : pushOff())} trackColor={{ true: C.acc, false: C.card2 }} ios_backgroundColor={C.card2} />} />
 
-        {/* Account */}
+          <Row iconNode={<Icon name="heart" size={18} color="#fff" />} iconBg="#FF2D55" title="Apple Health"
+            sub={Platform.OS !== 'ios' ? 'Android (Health Connect) is coming soon'
+              : !hSupported ? 'Works in the LevelUp+ app build, not in Expo Go'
+              : hConnected ? `Watch runs sync by themselves${hLast ? ` · last ${fmtWhen(hLast)}` : ''}`
+              : 'Use your watch runs for XP and the Battle map'}
+            onPress={Platform.OS !== 'ios' || !hSupported ? undefined : hConnected ? () => toggle('health') : () => setConsentOpen(true)}
+            right={Platform.OS !== 'ios' || !hSupported ? undefined : hConnected ? <Chevron open={open === 'health'} /> : <Pill label="Connect" />}>
+            {open === 'health' && hConnected && (
+              <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+                <View style={s.row}>
+                  <Btn title="Sync now" kind="ghost" icon="refresh-cw" onPress={() => healthImport(30)} style={{ flex: 1, paddingVertical: 12 }} />
+                  <Btn title="Last 90 days" kind="ghost" onPress={() => healthImport(90)} style={{ flex: 1, paddingVertical: 12 }} />
+                </View>
+                <Pressable onPress={healthDisconnect} hitSlop={8}><Text style={[s.sub, { marginTop: 14, textAlign: 'center' }]}>Disconnect Apple Health</Text></Pressable>
+              </View>
+            )}
+          </Row>
+
+          <Row iconNode={<Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>S</Text>} iconBg={STRAVA_ORANGE} title="Strava" last
+            sub={!strava.isConfigured() ? 'Developer note: set extra.stravaAuthServer in app.json'
+              : tokens ? `${tokens.athlete?.firstname ? `${tokens.athlete.firstname} ${tokens.athlete.lastname ?? ''}`.trim() + ' · ' : ''}${stravaRuns} runs · personal XP only`
+              : 'Past runs for personal XP and badges'}
+            onPress={tokens ? () => toggle('strava') : doConnect}
+            right={tokens ? <Chevron open={open === 'strava'} /> : <Pill label="Connect" color={STRAVA_ORANGE} ink="#fff" />}>
+            {open === 'strava' && tokens && (
+              <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+                <Text style={[s.sub, { marginTop: 0, marginBottom: 12 }]}>Import more of your Strava history. Runs already imported are never counted twice.</Text>
+                <View style={s.row}>
+                  <Btn title="30 days" kind="ghost" onPress={() => doImport(30)} style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 6 }} />
+                  <Btn title="90 days" kind="ghost" onPress={() => doImport(90)} style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 6 }} />
+                  <Btn title="1 year" kind="ghost" onPress={() => doImport(365)} style={{ flex: 1, paddingVertical: 12, paddingHorizontal: 6 }} />
+                </View>
+                <Text style={[s.sub, { marginTop: 12 }]}>Strava runs earn XP and badges and show on My tiles. Strava's rules don't allow them on the Battle map or leaderboards.</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 }}>
+                  <Pressable onPress={doDisconnect} hitSlop={8}><Text style={[s.sub, { marginTop: 0 }]}>Disconnect Strava</Text></Pressable>
+                  <Text style={{ color: STRAVA_ORANGE, fontSize: 12, fontWeight: '600' }}>Powered by Strava</Text>
+                </View>
+              </View>
+            )}
+          </Row>
+        </Group>
+
         <SectionLabel>Account</SectionLabel>
-        <Card>
-          <Text style={[s.sub, { marginTop: 0 }]}>Logged in as</Text>
-          <Text style={[s.txt, { fontWeight: '600', marginBottom: 8 }]}>{email}</Text>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-            <Icon name="lock" size={14} color={C.mut} />
-            <Text style={[s.sub, { marginTop: 0, fontSize: 12, flex: 1 }]}>Only you can see your email. Others see @{profile.name}.</Text>
-          </View>
-          <Pressable onPress={resync} style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 16 }}>
-            <Icon name={sync === 'error' ? 'alert-triangle' : sync === 'synced' ? 'check-circle' : 'cloud'} size={14} color={sync === 'error' ? C.bad : sync === 'synced' ? C.good : C.mut} />
-            <Text style={[s.sub, { marginTop: 0 }]}>
-              {sync === 'synced' ? 'All runs saved to your account' : sync === 'syncing' ? 'Syncing…' : sync === 'error' ? 'Couldn’t sync. Tap to retry' : 'Not synced'}
-            </Text>
-          </Pressable>
-          <Btn title="Log out" kind="ghost" icon="log-out" onPress={() => Alert.alert('Log out?', 'Your runs are saved in your account.', [
-            { text: 'Cancel', style: 'cancel' }, { text: 'Log out', style: 'destructive', onPress: async () => { await push.disable(); await signOut(); } },
-          ])} />
-        </Card>
+        <Group>
+          <Row icon="mail" title={email ?? ''} sub={`Only you can see your email. Others see @${profile.name}`} />
+          <Row icon={sync === 'error' ? 'alert-triangle' : sync === 'synced' ? 'check-circle' : 'cloud'}
+            iconColor={sync === 'error' ? C.bad : sync === 'synced' ? C.good : C.sec}
+            title={sync === 'synced' ? 'All runs saved to your account' : sync === 'syncing' ? 'Syncing…' : sync === 'error' ? 'Couldn’t sync' : 'Not synced'}
+            sub={sync === 'error' ? 'Tap to try again' : undefined}
+            onPress={sync === 'syncing' ? undefined : resync}
+            right={sync === 'syncing' ? <ActivityIndicator color={C.acc} /> : <Icon name="refresh-cw" size={16} color={C.mut} />} />
+          <Row icon="log-out" title="Log out" onPress={logOut} last />
+        </Group>
 
-        {/* Tile alerts */}
-        <SectionLabel>Tile alerts</SectionLabel>
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: pushState === 'unsupported' ? 0 : 12 }}>
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={pushState === 'on' ? 'bell' : 'bell-off'} size={22} color={pushState === 'on' ? C.acc : C.sec} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.txt, { fontWeight: '600' }]}>{pushState === 'on' ? 'Alerts are on' : 'Know when your turf is under attack'}</Text>
-              <Text style={[s.sub, { marginTop: 0 }]}>
-                {pushState === 'unsupported' ? 'Alerts need the newest LevelUp+ app build.'
-                  : pushState === 'blocked' ? 'Notifications are turned off for LevelUp+ in iPhone Settings.'
-                  : 'A notification when a rival is close to taking your tiles, or takes them. A few a day at most.'}
-              </Text>
-            </View>
-          </View>
-          {pushState === 'off' && <Btn title="Turn on alerts" icon="bell" onPress={pushOn} />}
-          {pushState === 'blocked' && <Btn title="Open Settings" kind="ghost" icon="settings" onPress={() => Linking.openSettings()} />}
-          {pushState === 'on' && <Pressable onPress={pushOff}><Text style={[s.sub, { marginTop: 0, textAlign: 'center' }]}>Turn off alerts</Text></Pressable>}
-        </Card>
-
-        {/* Apple Health */}
-        <SectionLabel>Apple Health</SectionLabel>
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: '#FF2D55', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name="heart" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[s.txt, { fontWeight: '600' }]}>{hConnected ? 'Connected' : 'Use your watch runs'}</Text>
-              <Text style={[s.sub, { marginTop: 0 }]}>
-                {hConnected
-                  ? `New runs sync automatically${hLast ? ` · last synced ${new Date(hLast).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}` : ''}`
-                  : 'Apple Watch, Garmin, Coros and more. These runs count on the Battle map and leaderboards.'}
-              </Text>
-            </View>
-          </View>
-          {Platform.OS !== 'ios' ? (
-            <Text style={s.sub}>Android (Health Connect) is coming soon.</Text>
-          ) : !hSupported ? (
-            <Text style={s.sub}>Apple Health works in the LevelUp+ app build, not inside Expo Go.</Text>
-          ) : hConnected ? (
-            <>
-              <View style={s.row}>
-                <Btn title="Sync now" kind="ghost" icon="refresh-cw" onPress={() => healthImport(30)} style={{ flex: 1 }} />
-                <Btn title="Last 90 days" kind="ghost" onPress={() => healthImport(90)} style={{ flex: 1 }} />
-              </View>
-              <Pressable onPress={healthDisconnect}><Text style={[s.sub, { marginTop: 12, textAlign: 'center' }]}>Disconnect Apple Health</Text></Pressable>
-            </>
-          ) : (
-            <Btn title="Connect Apple Health" icon="heart" onPress={() => setConsentOpen(true)} />
-          )}
-        </Card>
-
-        {/* Strava */}
-        <SectionLabel>Strava</SectionLabel>
-        <Card>
-          {!tokens ? (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: STRAVA_ORANGE, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>S</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[s.txt, { fontWeight: '500' }]}>Strava</Text>
-                  <Text style={s.sub}>Import past runs for personal XP and badges. Strava runs don't count on the Battle map or leaderboards.</Text>
-                </View>
-              </View>
-              <Btn title="Connect with Strava" onPress={doConnect} style={{ backgroundColor: STRAVA_ORANGE }} />
-              {!strava.isConfigured() && (
-                <Text style={[s.sub, { marginTop: 8, fontSize: 12 }]}>Developer note: add your server address to app.json → extra.stravaAuthServer (see STRAVA_SETUP.md).</Text>
-              )}
-            </>
-          ) : (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="check" color={C.good} />
-                <Text style={[s.txt, { fontWeight: '500', flex: 1 }]}>
-                  Connected{tokens.athlete?.firstname ? ` as ${tokens.athlete.firstname} ${tokens.athlete.lastname ?? ''}` : ''}
-                </Text>
-              </View>
-              <Text style={[s.sub, { marginBottom: 12 }]}>{stravaRuns} runs imported from Strava. Already-imported runs are never counted twice.</Text>
-              <View style={s.row}>
-                <Btn title="30 days" kind="ghost" onPress={() => doImport(30)} style={{ flex: 1, paddingHorizontal: 6 }} />
-                <Btn title="90 days" kind="ghost" onPress={() => doImport(90)} style={{ flex: 1, paddingHorizontal: 6 }} />
-                <Btn title="1 year" kind="ghost" onPress={() => doImport(365)} style={{ flex: 1, paddingHorizontal: 6 }} />
-              </View>
-              <Text style={[s.sub, { marginTop: 12, fontSize: 12 }]}>Strava runs earn XP and badges, and show on My tiles only (not the Battle map or leaderboards).</Text>
-              <Pressable onPress={doDisconnect}><Text style={[s.sub, { marginTop: 12, textAlign: 'center' }]}>Disconnect Strava</Text></Pressable>
-            </>
-          )}
-          <Text style={{ color: STRAVA_ORANGE, fontSize: 12, fontWeight: '600', textAlign: 'right', marginTop: 12 }}>Powered by Strava</Text>
-        </Card>
+        <Text style={[s.sub, { textAlign: 'center', marginTop: 16, color: C.mut, fontSize: 12 }]}>LevelUp+ {Constants.expoConfig?.version ?? ''}</Text>
       </ScrollView>
 
       {busy && (
