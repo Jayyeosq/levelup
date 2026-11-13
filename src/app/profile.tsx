@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Constants from 'expo-constants';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Btn, C, Card, Icon, IconName, num, s, SectionLabel, Stat } from '../components/ui';
+import { Avatar, Btn, C, Card, Icon, IconName, num, s, SectionLabel, Stat } from '../components/ui';
+import { AVATAR_COLORS, AVATARS, formatAvatar, isUnlocked, parseAvatar, unlockHint } from '../lib/avatars';
+import * as battle from '../lib/battle';
 import { BADGES, levelOf, titleOf } from '../lib/game';
 import { TOWNS } from '../lib/geo';
 import { useAuth } from '../lib/auth';
@@ -13,7 +15,6 @@ import * as health from '../lib/health';
 import { Linking, Platform } from 'react-native';
 import * as push from '../lib/push';
 
-const AVATARS = ['🏃', '🏃‍♀️', '🦊', '🐯', '🦁', '🐺', '🐼', '🦅', '🐉', '⚡', '🔥', '🚀'];
 const STRAVA_ORANGE = '#FC4C02';
 
 // One line in a settings group: icon, title, optional status line, and something on the right.
@@ -169,6 +170,16 @@ export default function ProfileScreen() {
   // ---- Layout ----
   const [open, setOpen] = useState<'avatar' | 'health' | 'strava' | null>(null); // which row is expanded
   const toggle = (k: 'avatar' | 'health' | 'strava') => setOpen((o) => (o === k ? null : k));
+  // ---- Avatar: unlocked by playing; a background colour behind it ----
+  const [isKing, setIsKing] = useState(false);
+  useFocusEffect(useCallback(() => {
+    if (!uid) return;
+    battle.fetchKings().then((ks) => setIsKing(ks.some((k) => k.king_id === uid))).catch(() => {});
+  }, [uid]));
+  const av = parseAvatar(profile.avatar);
+  const unlockCtx = { level: L, badges: state.badges, isKing };
+  const unlockedCount = AVATARS.filter((a) => isUnlocked(a, unlockCtx)).length;
+  const [avHint, setAvHint] = useState<string | null>(null);
   const counted = state.runs.filter((r) => !r.flagged);
   const totalKm = counted.reduce((m, r) => m + r.km, 0);
   const fmtWhen = (ms: number) => new Date(ms).toLocaleString('en-SG', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
@@ -182,9 +193,8 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
         {/* Who you are */}
         <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 16 }}>
-          <Pressable onPress={() => toggle('avatar')} accessibilityLabel="Change your avatar"
-            style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: C.card, borderWidth: 1, borderColor: C.line2, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 52 }}>{profile.avatar}</Text>
+          <Pressable onPress={() => { toggle('avatar'); setAvHint(null); }} accessibilityLabel="Change your avatar">
+            <Avatar a={profile.avatar} size={96} ring={C.line2} />
             <View style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: 15, backgroundColor: C.acc, borderWidth: 3, borderColor: C.bg, alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="edit-2" size={12} color={C.onAcc} />
             </View>
@@ -195,14 +205,44 @@ export default function ProfileScreen() {
 
         {open === 'avatar' && (
           <Card>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+              <Text style={[s.txt, { fontWeight: '600' }]}>Avatar</Text>
+              <Text style={[s.sub, num, { marginTop: 0 }]}>{unlockedCount} of {AVATARS.length} unlocked</Text>
+            </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-              {AVATARS.map((a) => (
-                <Pressable key={a} onPress={() => { setProfile({ avatar: a }); setOpen(null); }}
-                  style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card2, borderWidth: 2, borderColor: profile.avatar === a ? C.acc : 'transparent' }}>
-                  <Text style={{ fontSize: 24 }}>{a}</Text>
-                </Pressable>
+              {AVATARS.map((a) => {
+                const ok = isUnlocked(a, unlockCtx);
+                const on = av.emoji === a.emoji;
+                return (
+                  <Pressable key={a.emoji} accessibilityLabel={ok ? 'Choose this avatar' : unlockHint(a)}
+                    onPress={() => {
+                      if (!ok) { setAvHint(`${a.emoji}  ${unlockHint(a)}`); return; }
+                      setAvHint(null); setProfile({ avatar: formatAvatar(a.emoji, av.key) });
+                    }}
+                    style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: ok ? av.color : C.card2, borderWidth: 2, borderColor: on ? C.acc : 'transparent' }}>
+                    <Text style={{ fontSize: 24, opacity: ok ? 1 : 0.28 }}>{a.emoji}</Text>
+                    {!ok && (
+                      <View style={{ position: 'absolute', right: -2, bottom: -2, width: 18, height: 18, borderRadius: 9, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' }}>
+                        <Icon name="lock" size={10} color={C.sec} />
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={[s.sub, { textAlign: 'center', marginTop: 12, minHeight: 18, color: avHint ? C.txt : C.mut }]}>
+              {avHint ?? 'Level up, earn badges and take a town to unlock more.'}
+            </Text>
+
+            <Text style={[s.txt, { fontWeight: '600', marginTop: 16, marginBottom: 12 }]}>Background</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+              {AVATAR_COLORS.map((c) => (
+                <Pressable key={c.key} accessibilityLabel={`${c.name} background`} hitSlop={4}
+                  onPress={() => setProfile({ avatar: formatAvatar(av.emoji, c.key) })}
+                  style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.color, borderWidth: 2, borderColor: av.key === c.key ? C.acc : C.line2 }} />
               ))}
             </View>
+            <Btn title="Done" kind="ghost" onPress={() => { setOpen(null); setAvHint(null); }} style={{ marginTop: 16, paddingVertical: 12 }} />
           </Card>
         )}
 

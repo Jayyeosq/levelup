@@ -9,6 +9,7 @@ import { Btn, C, Hex, Icon, num, s } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import * as battle from '../lib/battle';
 import * as push from '../lib/push';
+import { emojiOf } from '../lib/avatars';
 import { areasHeld, dayOf, heldTiles } from '../lib/game';
 import { areaOfTile, tileCenter, tileOf, tilePolygon } from '../lib/geo';
 import { useStore } from '../lib/store';
@@ -229,7 +230,7 @@ export default function Territory() {
             return (
               <>
                 <Text style={[s.txt, num]}>
-                  <Text style={{ fontWeight: '600' }}>{selTile.is_mine ? 'Your tile' : `${selTile.avatar} @${selTile.username}'s tile`}</Text>
+                  <Text style={{ fontWeight: '600' }}>{selTile.is_mine ? 'Your tile' : `${emojiOf(selTile.avatar)} @${selTile.username}'s tile`}</Text>
                   {' · '}{areaOfTile(selTile.tile_id)}
                 </Text>
                 <Text style={[s.sub, num]}>
@@ -293,7 +294,7 @@ export default function Territory() {
                     <View style={{ flex: 1 }}>
                       <Text style={[s.txt, { fontWeight: '600' }]}>{k.town}{k.town === profile.homeTown ? '  ·  home' : ''}</Text>
                       <Text style={[s.sub, num, { marginTop: 0 }]}>
-                        {me ? `You · ${k.king_tiles} of ${k.total_tiles} tiles` : `${k.king_avatar} @${k.king_username} · ${k.king_tiles} tiles · you ${k.my_tiles}${k.my_tiles ? ` (${gap} to the crown)` : ''}`}
+                        {me ? `You · ${k.king_tiles} of ${k.total_tiles} tiles` : `${emojiOf(k.king_avatar)} @${k.king_username} · ${k.king_tiles} tiles · you ${k.my_tiles}${k.my_tiles ? ` (${gap} to the crown)` : ''}`}
                       </Text>
                     </View>
                   </View>

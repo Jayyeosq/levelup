@@ -3,7 +3,8 @@
 // same moment for runs that arrive quietly in the background.
 import { Modal, ScrollView, Text, View } from 'react-native';
 import { useStore } from '../lib/store';
-import { BadgeHex, BattleBox, Btn, Hex, num, s } from './ui';
+import { newlyUnlocked } from '../lib/avatars';
+import { BadgeHex, BattleBox, Btn, Hex, num, s, UnlockedAvatars } from './ui';
 
 export default function SyncSummary() {
   const { syncSummary: v, clearSyncSummary } = useStore();
@@ -40,6 +41,8 @@ export default function SyncSummary() {
                 </View>
               </View>
             ))}
+
+            <UnlockedAvatars list={newlyUnlocked(v.levelBefore, v.levelAfter, v.badges.map((b) => b.id))} />
 
             <Btn title="Nice" onPress={clearSyncSummary} style={{ marginTop: 16 }} />
           </ScrollView>

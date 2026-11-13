@@ -2,6 +2,7 @@ import React from 'react';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import MapView, { Polyline } from 'react-native-maps';
+import { AvatarDef, newlyUnlocked, parseAvatar } from '../lib/avatars';
 import { LatLng, splitAtGaps } from '../lib/geo';
 import { levelOf, RunBattle, RunResult, titleOf, xpForLevel, fmtPace } from '../lib/game';
 
@@ -114,6 +115,34 @@ export function BattleBox({ b }: { b?: RunBattle | null }) {
   );
 }
 
+/** A runner's avatar: their emoji on their chosen background colour. */
+export function Avatar({ a, size = 40, ring }: { a?: string | null; size?: number; ring?: string }) {
+  const v = parseAvatar(a);
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: v.color, alignItems: 'center', justifyContent: 'center', borderWidth: ring ? 2 : 0, borderColor: ring }}>
+      <Text style={{ fontSize: size * 0.52 }}>{v.emoji}</Text>
+    </View>
+  );
+}
+
+/** "New avatar unlocked" lines for the result screens. */
+export function UnlockedAvatars({ list }: { list: AvatarDef[] }) {
+  if (!list.length) return null;
+  return (
+    <>
+      {list.map((a) => (
+        <View key={a.emoji} style={s.event}>
+          <Avatar a={a.emoji} size={36} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.eventTitle}>New avatar unlocked</Text>
+            <Text style={s.sub}>Choose it on the Profile tab</Text>
+          </View>
+        </View>
+      ))}
+    </>
+  );
+}
+
 /** A small, still map of a run's route. */
 export function RouteMap({ route, height = 170 }: { route: LatLng[]; height?: number }) {
   if (!route || route.length < 2) return null;
@@ -176,6 +205,7 @@ export function ResultModal({ result, onClose }: { result: RunResult | null; onC
                 </View>
               </View>
             ))}
+            <UnlockedAvatars list={run.flagged ? [] : newlyUnlocked(result.levelBefore, result.levelAfter, result.newBadges.map((b) => b.id))} />
             {result.earnedFreeze && (
               <View style={s.event}><Icon name="cloud-snow" /><Text style={[s.txt, { flex: 1 }]}>7-day streak. You earned a streak freeze</Text></View>
             )}

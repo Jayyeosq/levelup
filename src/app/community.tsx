@@ -2,7 +2,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Share, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Btn, C, Card, Icon, IconName, num, s, SectionLabel } from '../components/ui';
+import { Avatar, Btn, C, Card, Icon, IconName, num, s, SectionLabel } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import * as cm from '../lib/community';
 import { useStore } from '../lib/store';
@@ -18,14 +18,6 @@ const ago = (iso: string) => {
   if (h < 24) return `${h}h`;
   return `${Math.round(h / 24)}d`;
 };
-
-function Avatar({ a, size = 40 }: { a: string; size?: number }) {
-  return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: size * 0.5 }}>{a}</Text>
-    </View>
-  );
-}
 
 export default function Community() {
   const [seg, setSeg] = useState<Seg>('feed');
