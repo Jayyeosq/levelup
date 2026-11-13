@@ -44,9 +44,11 @@ export default function RunScreen() {
     const t = setInterval(() => tick((n) => n + 1), 1000); // refresh the clock
     return () => clearInterval(t);
   }, [snap.status]);
+  // The map follows you until you move or zoom it yourself; the re-centre button turns following back on.
+  const [following, setFollowing] = useState(true);
   useEffect(() => {
-    if (snap.current && mapRef.current) mapRef.current.animateCamera({ center: snap.current, zoom: 16 }, { duration: 500 });
-  }, [snap.current]);
+    if (following && snap.current && mapRef.current) mapRef.current.animateCamera({ center: snap.current }, { duration: 500 });
+  }, [snap.current, following]);
 
   const live = tracker.snapshot();
   const km = live.distanceM / 1000;
@@ -117,7 +119,7 @@ export default function RunScreen() {
   const areaAt = useRef<{ lat: number; lng: number; at: number } | null>(null);
   const active = snap.status !== 'idle';
   useEffect(() => {
-    if (!active) { setArea([]); areaAt.current = null; setLocked(false); return; }
+    if (!active) { setArea([]); areaAt.current = null; setLocked(false); setFollowing(true); return; }
     const c = snap.current;
     if (!c || !userId) return;
     const b = areaAt.current, now = Date.now();
@@ -200,6 +202,8 @@ export default function RunScreen() {
       <View style={s.screen}>
         <MapView ref={mapRef} style={{ flex: 1 }} showsUserLocation userInterfaceStyle="dark"
           scrollEnabled={!locked} zoomEnabled={!locked} rotateEnabled={!locked} pitchEnabled={!locked}
+          onPanDrag={() => setFollowing(false)}
+          onRegionChangeComplete={(_r, d) => { if (d?.isGesture) setFollowing(false); }}
           initialRegion={snap.current ? { ...snap.current, latitudeDelta: 0.008, longitudeDelta: 0.008 } : { latitude: 1.3521, longitude: 103.8198, latitudeDelta: 0.2, longitudeDelta: 0.2 }}>
           {tileShapes}
           {snap.segments.map((seg, i) => seg.length > 1 && <Polyline key={i} coordinates={seg} strokeColor="#ffffff" strokeWidth={4} />)}
@@ -210,6 +214,14 @@ export default function RunScreen() {
             <Text style={{ color: C.txt, fontSize: 12, fontWeight: '500' }}>{gps[0]}</Text>
           </View>
         </SafeAreaView>
+        {!following && !locked && (
+          <View style={{ alignItems: 'flex-end', marginTop: -60, height: 60, paddingRight: 12 }} pointerEvents="box-none">
+            <Pressable onPress={() => setFollowing(true)} accessibilityLabel="Centre the map on me"
+              style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(14,16,20,0.92)', borderWidth: 1, borderColor: C.line2, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="navigation" color={C.acc} size={20} />
+            </Pressable>
+          </View>
+        )}
         <SafeAreaView edges={['bottom']} style={{ backgroundColor: C.bg, padding: 16 }}>
           <Text style={[{ color: C.txt, fontSize: 56, fontWeight: '600', textAlign: 'center' }, num]}>{km.toFixed(2)}</Text>
           <Text style={[s.sub, { textAlign: 'center', marginBottom: 16 }, snap.status === 'paused' && { color: C.acc }]}>{snap.status === 'paused' ? 'Paused' : 'Kilometres'}</Text>
@@ -220,8 +232,8 @@ export default function RunScreen() {
           </View>
           {snap.mode === 'foreground' && (
             <Pressable onPress={() => Linking.openSettings()} style={{ marginBottom: 12 }}>
-              <Text style={[s.sub, { textAlign: 'center' }]}>Keep the app open and the screen on while tracking.</Text>
-              <Text style={[s.sub, { textAlign: 'center', color: C.acc }]}>To track with the screen locked, set Location to Always in Settings</Text>
+              <Text style={[s.sub, { textAlign: 'center' }]}>Keep the app open and the screen on: this phone can't track with the screen locked right now.</Text>
+              <Text style={[s.sub, { textAlign: 'center', color: C.acc }]}>Check Location is allowed for LevelUp+ in Settings</Text>
             </Pressable>
           )}
           {locked ? (
@@ -315,8 +327,8 @@ export default function RunScreen() {
           <View style={s.sheet}>
             <Text style={[s.title, { marginBottom: 12 }]}>Let LevelUp+ track your run</Text>
             {([
-              ['map-pin', 'Your iPhone will ask twice. Choose "Allow While Using App", then "Change to Always Allow".'],
-              ['smartphone', '"Always" keeps tracking when the screen is locked or the phone is in your pocket. Without it, the app must stay open.'],
+              ['map-pin', 'Your iPhone will ask for your location. Choose "Allow While Using App" and keep Precise Location on.'],
+              ['smartphone', 'Your run keeps tracking with the screen locked or the phone in your pocket. A blue marker at the top of the screen shows it is on.'],
               ['lock', 'Your location is only recorded during a run, and your routes stay private.'],
             ] as const).map(([ic, t]) => (
               <View key={ic} style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>

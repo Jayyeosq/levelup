@@ -165,9 +165,7 @@ const restored: Promise<void> = (async () => {
     }
     // last: null → the next GPS fix starts a new segment, so the gap isn't bridged.
     Object.assign(S, { status, startedAt: d.startedAt, activeMs, segmentStart, distanceM: d.distanceM ?? 0, segments: d.segments, last: null });
-    let bg = false;
-    try { bg = (await Location.getBackgroundPermissionsAsync()).status === 'granted'; } catch {}
-    try { S.mode = await attach(bg); } catch { S.mode = 'foreground'; }
+    try { S.mode = await attach(true); } catch { S.mode = 'foreground'; }
     emit();
   } catch { /* a broken save must never stop the app from opening */ }
 })();
@@ -210,8 +208,10 @@ export async function warmUp(onFix: (accuracyM: number) => void): Promise<() => 
 export async function requestPermissions(): Promise<{ ok: boolean; background: boolean; message?: string }> {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return { ok: false, background: false, message: 'Location permission is needed to track your run.' };
+  // "While Using the App" is enough: a run started in the app keeps tracking with the screen locked.
+  // (The old code only did that with "Always", so with "While Using" the GPS stopped on lock.)
   let background = false;
-  try { background = (await Location.requestBackgroundPermissionsAsync()).status === 'granted'; } catch { background = false; }
+  try { background = (await Location.getBackgroundPermissionsAsync()).status === 'granted'; } catch { background = false; }
   return { ok: true, background };
 }
 
@@ -221,7 +221,7 @@ export async function start(): Promise<{ ok: boolean; message?: string }> {
   const perm = await requestPermissions();
   if (!perm.ok) return { ok: false, message: perm.message };
   Object.assign(S, { status: 'running', startedAt: Date.now(), activeMs: 0, segmentStart: Date.now(), distanceM: 0, segments: [], last: null });
-  S.mode = await attach(perm.background);
+  S.mode = await attach(true); // falls back to app-open-only tracking where the phone can't do it (Expo Go)
   askMotion();
   save(true);
   emit();
