@@ -138,3 +138,15 @@ export function decodePolyline(str: string): LatLng[] {
   }
   return out;
 }
+
+/** Splits a stored route wherever two points are far apart (a pause), so no line is drawn across the gap. */
+export function splitAtGaps(route: LatLng[], gapM = 200): LatLng[][] {
+  const out: LatLng[][] = [];
+  let cur: LatLng[] = [];
+  for (const p of route) {
+    if (cur.length && distanceM(cur[cur.length - 1], p) > gapM) { out.push(cur); cur = []; }
+    cur.push(p);
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}

@@ -181,6 +181,32 @@ if (!TaskManager.isTaskDefined(TASK)) {
   });
 }
 
+/** 'ask' means the phone hasn't asked about location yet (or will ask again). */
+export async function permissionState(): Promise<'granted' | 'ask' | 'denied'> {
+  try {
+    const p = await Location.getForegroundPermissionsAsync();
+    return p.granted ? 'granted' : p.canAskAgain ? 'ask' : 'denied';
+  } catch { return 'ask'; }
+}
+
+/**
+ * Watches GPS before a run starts, so the run begins on a good signal and the first
+ * metres aren't lost. Location permission must already be granted. Returns a stop function.
+ */
+export async function warmUp(onFix: (accuracyM: number) => void): Promise<() => void> {
+  const sub = await Location.watchPositionAsync(
+    { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 0 },
+    (l) => {
+      if (S.status !== 'idle') return;
+      S.current = { latitude: l.coords.latitude, longitude: l.coords.longitude };
+      S.accuracy = l.coords.accuracy ?? 999;
+      emit();
+      onFix(S.accuracy);
+    },
+  );
+  return () => sub.remove();
+}
+
 export async function requestPermissions(): Promise<{ ok: boolean; background: boolean; message?: string }> {
   const fg = await Location.requestForegroundPermissionsAsync();
   if (fg.status !== 'granted') return { ok: false, background: false, message: 'Location permission is needed to track your run.' };

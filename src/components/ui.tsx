@@ -1,6 +1,8 @@
 import React from 'react';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
+import MapView, { Polyline } from 'react-native-maps';
+import { LatLng, splitAtGaps } from '../lib/geo';
 import { levelOf, RunBattle, RunResult, titleOf, xpForLevel, fmtPace } from '../lib/game';
 
 // Design tokens. Cool graphite neutrals, one orange accent.
@@ -112,6 +114,28 @@ export function BattleBox({ b }: { b?: RunBattle | null }) {
   );
 }
 
+/** A small, still map of a run's route. */
+export function RouteMap({ route, height = 170 }: { route: LatLng[]; height?: number }) {
+  if (!route || route.length < 2) return null;
+  let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+  for (const p of route) {
+    minLat = Math.min(minLat, p.latitude); maxLat = Math.max(maxLat, p.latitude);
+    minLng = Math.min(minLng, p.longitude); maxLng = Math.max(maxLng, p.longitude);
+  }
+  const region = {
+    latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2,
+    latitudeDelta: Math.max(0.004, (maxLat - minLat) * 1.5), longitudeDelta: Math.max(0.004, (maxLng - minLng) * 1.5),
+  };
+  return (
+    <View style={{ height, borderRadius: 12, overflow: 'hidden', marginBottom: 12 }} pointerEvents="none">
+      <MapView style={{ flex: 1 }} userInterfaceStyle="dark" initialRegion={region}
+        scrollEnabled={false} zoomEnabled={false} rotateEnabled={false} pitchEnabled={false} toolbarEnabled={false}>
+        {splitAtGaps(route).map((seg, i) => seg.length > 1 && <Polyline key={i} coordinates={seg} strokeColor={C.acc} strokeWidth={4} />)}
+      </MapView>
+    </View>
+  );
+}
+
 export function ResultModal({ result, onClose }: { result: RunResult | null; onClose: () => void }) {
   if (!result) return null;
   const { run } = result;
@@ -131,6 +155,8 @@ export function ResultModal({ result, onClose }: { result: RunResult | null; onC
                 {run.km.toFixed(2)} km · {Math.floor(run.durationSec / 60)} min{run.km > 0.2 ? ` · ${fmtPace(run.durationSec / 60 / run.km)}` : ''}
               </Text>
             </View>
+
+            <RouteMap route={run.route} />
 
             {lvUp && (
               <View style={s.hl}>
