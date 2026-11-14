@@ -53,7 +53,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "LevelUp+ reads your running workouts (distance, time and route) to award XP, claim map tiles and rank you on leaderboards.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthUpdateUsageDescription": "LevelUp+ only reads your running workouts from Apple Health. It never adds or changes your health data.",
           "background": false
         }
       ],
@@ -84,6 +84,12 @@
         "projectId": "588764b1-0629-460f-a7bd-5ff371302e44"
       }
     },
-    "owner": "jayyeosq"
+    "owner": "jayyeosq",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/588764b1-0629-460f-a7bd-5ff371302e44"
+    }
   }
 }

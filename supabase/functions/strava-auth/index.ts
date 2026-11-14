@@ -15,7 +15,7 @@ const CLIENT_SECRET = Deno.env.get('STRAVA_CLIENT_SECRET') ?? '';
 const BASE = `${Deno.env.get('SUPABASE_URL')}/functions/v1/strava-auth`;
 
 // Only ever send people back to our own app (Expo Go during testing, or the real app).
-const ALLOWED = [/^exps?:\/\//, /^levelup:\/\//];
+const ALLOWED = [/^exps?:\/\//, /^levelup:\/\//, /^levelup-dev:\/\//];
 const safeRedirect = (r: string | null) => (r && ALLOWED.some((re) => re.test(r)) ? r : null);
 
 const b64e = (s: string) => btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
