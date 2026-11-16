@@ -11,7 +11,7 @@ import * as battle from '../lib/battle';
 import * as push from '../lib/push';
 import { emojiOf } from '../lib/avatars';
 import { areasHeld, dayOf, heldTiles } from '../lib/game';
-import { areaOfTile, tileCenter, tileOf, tilePolygon } from '../lib/geo';
+import { areaOfTile, tileCenter, tileOf, tilePolygon, TOWNS } from '../lib/geo';
 import { useStore } from '../lib/store';
 import { currentPosition } from '../lib/tracker';
 
@@ -53,7 +53,10 @@ export default function Territory() {
     if (centred.current && !force) return true;
     const me = await currentPosition();
     const ids = Object.keys(held);
-    const target = me ?? (force ? null : ids.length ? tileCenter(ids[0]) : null);
+    const town = TOWNS.find((t) => t[0] === profile.homeTown);
+    const home = town ? { latitude: town[1], longitude: town[2] } : null;
+    // No location yet (a new runner who hasn't allowed it): somewhere they've run, else their home town.
+    const target = me ?? (force ? null : ids.length ? tileCenter(ids[0]) : home);
     if (!target || !mapRef.current) return false;
     if (me) centred.current = true;
     const d = force ? 0.012 : 0.03;

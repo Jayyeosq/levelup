@@ -179,7 +179,11 @@ function Board({ open }: { open: OpenRunner }) {
     try {
       const res = await cm.nudge(r.user_id);
       if (res === 'sent' || res === 'already') { setNudged((n) => ({ ...n, [r.user_id]: true })); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); }
-      else if (res === 'no_phone') Alert.alert('Nudge not sent', `@${r.username} hasn't turned on alerts yet, so a nudge can't reach them.`);
+      else if (res === 'full') Alert.alert('Nudge not sent', `@${r.username} has already had 3 nudges today. Try again tomorrow.`);
+      else if (res === 'no_phone') Alert.alert('Nudge not sent', `@${r.username} hasn't turned on alerts yet, so a notification can't reach them.`, [
+        { text: 'OK', style: 'cancel' },
+        { text: 'Send a message instead', onPress: () => { Share.share({ message: cm.NUDGE_TEXT }).catch(() => {}); } },
+      ]);
     } catch (e: any) { Alert.alert('Nudge not sent', e?.message ?? String(e)); }
   };
   const quiet = !!rows?.length && rows.every((r) => r.week_xp === 0);

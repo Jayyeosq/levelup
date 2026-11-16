@@ -82,18 +82,22 @@ export async function refresh(uid: string): Promise<void> {
 }
 
 /** Shows alerts while the app is open, and calls `onOpen` when one is tapped. */
-export function init(onOpen: () => void): () => void {
+export function init(onOpen: (screen: 'territory' | 'run') => void): () => void {
   const n = lib();
   if (!n) return () => {};
   try {
     n.setNotificationHandler({
       handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
     });
-    const isTileAlert = (r: any) => r?.notification?.request?.content?.data?.screen === 'territory';
-    const sub = n.addNotificationResponseReceivedListener((r: any) => { if (isTileAlert(r)) onOpen(); });
+    // Tile alerts open the Battle map; nudges and the per-km cue open the Run tab.
+    const go = (r: any) => {
+      const screen = r?.notification?.request?.content?.data?.screen;
+      if (screen === 'territory' || screen === 'run') onOpen(screen);
+    };
+    const sub = n.addNotificationResponseReceivedListener(go);
     // Opened from a notification while the app was closed
     const lastTap = n.getLastNotificationResponse?.();
-    if (lastTap) { if (isTileAlert(lastTap)) onOpen(); n.clearLastNotificationResponse?.(); }
+    if (lastTap) { go(lastTap); n.clearLastNotificationResponse?.(); }
     return () => sub.remove();
   } catch { return () => {}; }
 }
