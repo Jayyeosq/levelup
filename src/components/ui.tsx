@@ -5,8 +5,9 @@ import MapView, { Polyline } from 'react-native-maps';
 import { AvatarDef, newlyUnlocked, parseAvatar } from '../lib/avatars';
 import { LatLng, splitAtGaps } from '../lib/geo';
 import { levelOf, RunBattle, RunResult, titleOf, xpForLevel, fmtPace } from '../lib/game';
+import { getAccent } from '../lib/theme';
 
-// Design tokens. Cool graphite neutrals, one orange accent.
+// Design tokens. Cool graphite neutrals, one accent (orange unless the runner picks another on Profile).
 // Spacing sits on a 4px grid. Weights: 400, 500, 600 only.
 export const C = {
   bg: '#0E0F12',
@@ -17,8 +18,8 @@ export const C = {
   txt: '#EEF0F4', // primary text
   sec: '#A3A9B6', // secondary text
   mut: '#858C9B', // muted text (5.6:1 on the background; the old #6E7584 was 4.1:1)
-  acc: '#FF6A2B',
-  onAcc: '#1A0F08', // text on the accent (white on orange fails contrast)
+  get acc() { return getAccent().color; }, // read live, so it follows the runner's choice
+  get onAcc() { return getAccent().on; }, // text on the accent (white on it fails contrast)
   good: '#4CC38A',
   bad: '#F2555A',
 };
@@ -232,23 +233,19 @@ export function ResultModal({ result, onClose }: { result: RunResult | null; onC
   );
 }
 
-export const s = StyleSheet.create({
+const base = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   pad: { padding: 16, paddingBottom: 40 },
   card: { backgroundColor: C.card, borderColor: C.line, borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 12 },
   btn: { flexDirection: 'row', gap: 8, borderRadius: 12, paddingVertical: 16, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card2 },
-  btnPri: { backgroundColor: C.acc },
   btnGhost: { backgroundColor: 'transparent', borderWidth: 1, borderColor: C.line2 },
   btnDanger: { backgroundColor: C.bad },
   btnTxt: { fontWeight: '600', fontSize: 16 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 16 },
-  hexNum: { color: C.onAcc, fontSize: 20, fontWeight: '600' },
-  hexNumLg: { color: C.onAcc, fontSize: 24, fontWeight: '600' },
   title: { color: C.txt, fontSize: 20, fontWeight: '600' },
   sub: { color: C.sec, fontSize: 13, lineHeight: 18, marginTop: 2 },
   txt: { color: C.txt, fontSize: 15, lineHeight: 20 },
   bar: { height: 6, backgroundColor: C.card2, borderRadius: 3, overflow: 'hidden', marginTop: 8 },
-  barFill: { height: '100%', backgroundColor: C.acc, borderRadius: 3 },
   stat: { flex: 1, backgroundColor: C.card, borderColor: C.line, borderWidth: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   statVal: { color: C.txt, fontSize: 20, fontWeight: '600' },
   statLbl: { color: C.mut, fontSize: 12, marginTop: 2 },
@@ -257,7 +254,6 @@ export const s = StyleSheet.create({
   ov: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36, maxHeight: '88%' },
   bigXp: { color: C.txt, fontSize: 28, fontWeight: '600', textAlign: 'center', marginTop: 12 },
-  hl: { backgroundColor: C.card2, borderRadius: 12, padding: 16, marginBottom: 8, alignItems: 'center', borderWidth: 1, borderColor: C.acc },
   hlBig: { color: C.txt, fontSize: 20, fontWeight: '600' },
   hlTxt: { color: C.sec, fontSize: 14, marginTop: 2, textAlign: 'center' },
   event: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
@@ -266,3 +262,13 @@ export const s = StyleSheet.create({
   bdTxt: { color: C.sec, fontSize: 14, flex: 1 },
   bdVal: { color: C.txt, fontSize: 14, fontWeight: '500' },
 });
+
+// Styles that use the accent are read live, so they follow the runner's chosen colour.
+export const s = {
+  ...base,
+  get btnPri(): ViewStyle { return { backgroundColor: C.acc }; },
+  get hexNum(): TextStyle { return { color: C.onAcc, fontSize: 20, fontWeight: '600' }; },
+  get hexNumLg(): TextStyle { return { color: C.onAcc, fontSize: 24, fontWeight: '600' }; },
+  get barFill(): ViewStyle { return { height: '100%', backgroundColor: C.acc, borderRadius: 3 }; },
+  get hl(): ViewStyle { return { backgroundColor: C.card2, borderRadius: 12, padding: 16, marginBottom: 8, alignItems: 'center', borderWidth: 1, borderColor: C.acc }; },
+};

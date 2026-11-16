@@ -11,6 +11,7 @@ import * as battle from '../lib/battle';
 import { tileOf, tilePolygon } from '../lib/geo';
 import { useStore } from '../lib/store';
 import * as tracker from '../lib/tracker';
+import { accentRgba } from '../lib/theme';
 
 const GPS_READY_M = 20;    // start once the signal is this accurate
 const AREA_HALF = 0.012;   // Battle tiles are loaded about 1.3 km around you
@@ -144,15 +145,15 @@ export default function RunScreen() {
     return [
       ...area.filter((t) => !mine.has(t.tile_id)).map((t) => (
         <Polygon key={t.tile_id} coordinates={tilePolygon(t.tile_id)} tappable={false} strokeWidth={1}
-          fillColor={t.is_mine ? 'rgba(255,106,43,0.16)' : 'rgba(148,158,172,0.14)'}
-          strokeColor={t.is_mine ? 'rgba(255,106,43,0.7)' : 'rgba(148,158,172,0.4)'} />
+          fillColor={t.is_mine ? accentRgba(0.16) : 'rgba(148,158,172,0.14)'}
+          strokeColor={t.is_mine ? accentRgba(0.7) : 'rgba(148,158,172,0.4)'} />
       )),
       ...runTiles.map((id) => (
         <Polygon key={`run-${id}`} coordinates={tilePolygon(id)} tappable={false} strokeWidth={2}
-          fillColor="rgba(255,106,43,0.42)" strokeColor="rgba(255,106,43,1)" />
+          fillColor={accentRgba(0.42)} strokeColor={accentRgba(1)} />
       )),
     ];
-  }, [area, runTiles]);
+  }, [area, runTiles, profile.accent]);
   // A light tap when you enter a tile that isn't yours yet.
   const seenTiles = useRef(0);
   useEffect(() => {

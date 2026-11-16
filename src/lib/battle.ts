@@ -3,6 +3,7 @@
 // and never tiles near where anyone's runs start or end.
 import type { RunBattle } from './game';
 import { supabase } from './supabase';
+import { accentRgba, getAccent } from './theme';
 
 export type BattleTile = {
   tile_id: string; owner_id: string; username: string; avatar: string;
@@ -19,13 +20,18 @@ export function tileKind(t: BattleTile, lost: Set<string>): TileKind {
   if (t.my_km > 0 && t.my_km >= t.owner_km * ATTACK_RATIO) return 'reach';
   return 'rival';
 }
-export const KIND_STYLE: Record<TileKind, { label: string; fill: string; stroke: string; width: number }> = {
-  mine:   { label: 'Yours',        fill: 'rgba(255,106,43,0.62)', stroke: 'rgba(255,106,43,1)',   width: 1.5 },
-  attack: { label: 'Under attack', fill: 'rgba(255,106,43,0.62)', stroke: 'rgba(250,204,21,1)',   width: 3 },
+type KindStyle = { label: string; fill: string; stroke: string; width: number };
+const OTHERS: Record<Exclude<TileKind, 'mine' | 'attack'>, KindStyle> = {
   lost:   { label: 'Just lost',    fill: 'rgba(242,85,90,0.50)',  stroke: 'rgba(242,85,90,1)',    width: 2 },
   reach:  { label: 'Within reach', fill: 'rgba(76,154,255,0.32)', stroke: 'rgba(76,154,255,1)',   width: 2 },
   rival:  { label: 'Rivals',       fill: 'rgba(148,158,172,0.16)', stroke: 'rgba(148,158,172,0.35)', width: 0.75 },
 };
+/** Your own tiles are drawn in your accent colour, so this is worked out when asked. */
+export function kindStyle(k: TileKind): KindStyle {
+  if (k === 'mine') return { label: 'Yours', fill: accentRgba(0.62), stroke: accentRgba(1), width: 1.5 };
+  if (k === 'attack') return { label: 'Under attack', fill: accentRgba(0.62), stroke: getAccent().attack, width: 3 };
+  return OTHERS[k];
+}
 export type MyTile = { tile_id: string; my_km: number; owner_id: string; owner_username: string; owner_km: number };
 export type TownKing = {
   town: string; king_id: string; king_username: string; king_avatar: string;

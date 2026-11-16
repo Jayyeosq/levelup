@@ -8,6 +8,7 @@ import { Avatar, Btn, C, Card, Icon, IconName, num, s, SectionLabel } from '../c
 import { useAuth } from '../lib/auth';
 import * as cm from '../lib/community';
 import { useStore } from '../lib/store';
+import { accentRgba } from '../lib/theme';
 
 type Seg = 'feed' | 'board' | 'friends';
 const SEGS: [Seg, string, IconName][] = [['feed', 'Feed', 'activity'], ['board', 'This week', 'bar-chart-2'], ['friends', 'Friends', 'users']];
@@ -22,11 +23,12 @@ const ago = (iso: string) => {
 };
 
 type OpenRunner = (r: RunnerRef) => void;
-const chip = (on: boolean) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: on ? C.acc : C.line2, backgroundColor: on ? 'rgba(255,106,43,0.12)' : 'transparent' } as const);
+const chip = (on: boolean) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: on ? C.acc : C.line2, backgroundColor: on ? accentRgba(0.12) : 'transparent' } as const);
 
 export default function Community() {
   const [seg, setSeg] = useState<Seg>('feed');
   const { userId } = useAuth();
+  useStore(); // redraws this tab when the runner changes their colour
   const requests = cm.usePendingRequests(userId);
   // Tapping a runner anywhere here opens their card. Closing it reloads the list underneath.
   const [runner, setRunner] = useState<RunnerRef | null>(null);

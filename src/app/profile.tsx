@@ -14,6 +14,7 @@ import * as strava from '../lib/strava';
 import * as health from '../lib/health';
 import { Linking, Platform } from 'react-native';
 import * as push from '../lib/push';
+import { ACCENTS } from '../lib/theme';
 
 const STRAVA_ORANGE = '#FC4C02';
 
@@ -243,6 +244,21 @@ export default function ProfileScreen() {
                   onPress={() => setProfile({ avatar: formatAvatar(av.emoji, c.key) })}
                   style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.color, borderWidth: 2, borderColor: av.key === c.key ? C.acc : C.line2 }} />
               ))}
+            </View>
+
+            <Text style={[s.txt, { fontWeight: '600', marginTop: 16 }]}>App colour</Text>
+            <Text style={[s.sub, { marginBottom: 12 }]}>Buttons, your level and your tiles on the map</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
+              {ACCENTS.map((a) => {
+                const on = profile.accent === a.key;
+                return (
+                  <Pressable key={a.key} accessibilityRole="button" accessibilityLabel={`${a.name} app colour`} accessibilityState={{ selected: on }} hitSlop={4}
+                    onPress={() => setProfile({ accent: a.key })}
+                    style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: a.color, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: on ? C.txt : 'transparent' }}>
+                    {on && <Icon name="check" size={18} color={a.on} />}
+                  </Pressable>
+                );
+              })}
             </View>
             <Btn title="Done" kind="ghost" onPress={() => { setOpen(null); setAvHint(null); }} style={{ marginTop: 16, paddingVertical: 12 }} />
           </Card>

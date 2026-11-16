@@ -4,7 +4,7 @@
 import type { Run, RunInput } from './game';
 import { supabase } from './supabase';
 
-export type CloudProfile = { username: string; avatar: string; home_town: string | null; weekly_goal_km: number; xp: number; level: number };
+export type CloudProfile = { username: string; avatar: string; home_town: string | null; weekly_goal_km: number; xp: number; level: number; accent?: string };
 
 type RunRow = {
   client_id: string; started_at: string; duration_sec: number; km: number | string;
@@ -31,14 +31,21 @@ export const fromRow = (row: RunRow): RunInput => ({
 });
 
 export async function fetchProfile(userId: string): Promise<CloudProfile | null> {
-  const { data, error } = await supabase.from('profiles')
-    .select('username, avatar, home_town, weekly_goal_km, xp, level').eq('id', userId).maybeSingle();
-  if (error) throw error;
-  return data as CloudProfile | null;
+  const cols = 'username, avatar, home_town, weekly_goal_km, xp, level';
+  const q = (c: string) => supabase.from('profiles').select(c).eq('id', userId).maybeSingle();
+  let res = await q(cols + ', accent');
+  if (res.error && /accent/i.test(res.error.message)) res = await q(cols); // database not updated yet (0011)
+  if (res.error) throw res.error;
+  return res.data as unknown as CloudProfile | null;
 }
 
 export async function updateProfile(userId: string, patch: Partial<Omit<CloudProfile, 'username'>>) {
-  const { error } = await supabase.from('profiles').update(patch).eq('id', userId);
+  let { error } = await supabase.from('profiles').update(patch).eq('id', userId);
+  if (error && patch.accent !== undefined && /accent/i.test(error.message)) {
+    // Database not updated yet (0011): the colour stays saved on this phone only.
+    const { accent: _skip, ...rest } = patch;
+    error = Object.keys(rest).length ? (await supabase.from('profiles').update(rest).eq('id', userId)).error : null;
+  }
   if (error) throw error;
 }
 

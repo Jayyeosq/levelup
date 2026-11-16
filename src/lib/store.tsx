@@ -8,13 +8,14 @@ import * as cloud from './cloud';
 import { deleteActivitiesForRun, deleteAllMyActivities, postActivities } from './community';
 import { Badge, BADGES, deleteRun, GameState, importRuns, levelOf, newState, processRun, rebuild, Run, RunBattle, RunInput, RunResult, titleOf } from './game';
 import { distanceM, kmPerTile, LatLng, simplify } from './geo';
+import { DEFAULT_ACCENT, setAccent } from './theme';
 
 const KEY = 'stravaplus.game.v1';
 const PKEY = 'stravaplus.profile.v1';
 const OWNER_KEY = 'levelup.cache.owner'; // which account the phone's cached runs belong to
 
-export type Profile = { name: string; avatar: string; homeTown: string; weeklyGoalKm: number };
-export const defaultProfile: Profile = { name: '', avatar: '🏃', homeTown: '', weeklyGoalKm: 20 };
+export type Profile = { name: string; avatar: string; homeTown: string; weeklyGoalKm: number; accent: string };
+export const defaultProfile: Profile = { name: '', avatar: '🏃', homeTown: '', weeklyGoalKm: 20, accent: DEFAULT_ACCENT };
 
 export type SyncStatus = 'offline' | 'syncing' | 'synced' | 'error';
 
@@ -60,6 +61,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   stateRef.current = state;
   const userRef = useRef<string | null>(null);
   userRef.current = userId;
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  setAccent(profile.accent); // before any screen draws, so every colour read below is the runner's own
 
   // ---- local cache ----
   useEffect(() => {
@@ -106,7 +110,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       persist(s);
       await AsyncStorage.setItem(OWNER_KEY, uid);
       if (prof) {
-        persistProfile({ name: prof.username, avatar: prof.avatar, homeTown: prof.home_town ?? '', weeklyGoalKm: prof.weekly_goal_km });
+        persistProfile({ name: prof.username, avatar: prof.avatar, homeTown: prof.home_town ?? '', weeklyGoalKm: prof.weekly_goal_km, accent: prof.accent ?? profileRef.current.accent });
         if (prof.xp !== s.xp || prof.level !== levelOf(s.xp)) await cloud.updateProfile(uid, { xp: s.xp, level: levelOf(s.xp) });
       }
       setSync('synced');
@@ -225,6 +229,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (p.avatar !== undefined) patch.avatar = p.avatar;
       if (p.homeTown !== undefined) patch.home_town = p.homeTown || null;
       if (p.weeklyGoalKm !== undefined) patch.weekly_goal_km = p.weeklyGoalKm;
+      if (p.accent !== undefined) patch.accent = p.accent;
       if (Object.keys(patch).length) cloud.updateProfile(uid, patch).catch(() => setSync('error'));
     }
   }, []);

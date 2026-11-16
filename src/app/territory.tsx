@@ -14,6 +14,7 @@ import { areasHeld, dayOf, heldTiles } from '../lib/game';
 import { areaOfTile, tileCenter, tileOf, tilePolygon, TOWNS } from '../lib/geo';
 import { useStore } from '../lib/store';
 import { currentPosition } from '../lib/tracker';
+import { accentRgba } from '../lib/theme';
 
 type Mode = 'battle' | 'mine';
 const MAX_DELTA = 0.12; // zoomed further out than ~13 km → ask to zoom in
@@ -143,7 +144,7 @@ export default function Territory() {
             so selecting must be idempotent: never toggle here. Clear with the x on the card. */}
         {mode === 'battle'
           ? [...tiles].sort((a, b) => ORDER[battle.tileKind(a, lostSet)] - ORDER[battle.tileKind(b, lostSet)]).map((t) => {
-              const st = battle.KIND_STYLE[battle.tileKind(t, lostSet)];
+              const st = battle.kindStyle(battle.tileKind(t, lostSet));
               const isSel = sel === t.tile_id;
               return (
                 <Polygon key={t.tile_id} coordinates={tilePolygon(t.tile_id)} tappable={false}
@@ -152,8 +153,8 @@ export default function Territory() {
             })
           : Object.entries(held).map(([id, km]) => (
               <Polygon key={id} coordinates={tilePolygon(id)} tappable={false}
-                fillColor={`rgba(255,106,43,${Math.min(0.75, 0.3 + km * 0.25).toFixed(2)})`}
-                strokeColor={sel === id ? '#ffffff' : 'rgba(255,106,43,0.9)'} strokeWidth={sel === id ? 3 : 1} />
+                fillColor={accentRgba(Number(Math.min(0.75, 0.3 + km * 0.25).toFixed(2)))}
+                strokeColor={sel === id ? '#ffffff' : accentRgba(0.9)} strokeWidth={sel === id ? 3 : 1} />
             ))}
         {mode === 'battle' && sel && !selTile && (
           <Polygon coordinates={tilePolygon(sel)} tappable={false} fillColor="rgba(255,255,255,0.08)" strokeColor="#ffffff" strokeWidth={2} zIndex={9} />
@@ -281,7 +282,7 @@ export default function Territory() {
           {!tooFar && tiles.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
               {(['mine', 'attack', 'lost', 'reach', 'rival'] as const).filter((k) => counts[k] > 0 || k === 'mine').map((k) => {
-                const st = battle.KIND_STYLE[k];
+                const st = battle.kindStyle(k);
                 return (
                   <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(14,16,20,0.88)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: C.line }}>
                     <View style={{ width: 11, height: 11, borderRadius: 3, backgroundColor: st.fill, borderColor: st.stroke, borderWidth: k === 'attack' ? 2 : 1 }} />

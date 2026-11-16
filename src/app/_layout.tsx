@@ -10,7 +10,7 @@ import { AuthProvider, useAuth } from '../lib/auth';
 import { usePendingRequests } from '../lib/community';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C, Icon, IconName } from '../components/ui';
-import { StoreProvider } from '../lib/store';
+import { StoreProvider, useStore } from '../lib/store';
 
 const icon = (name: IconName) => ({ focused }: { focused: boolean }) => <Icon name={name} color={focused ? C.acc : C.mut} size={20} />;
 
@@ -23,6 +23,7 @@ function AuthGate() {
 function AppTabs() {
   const { userId } = useAuth();
   const requests = usePendingRequests(userId, true); // friend requests waiting for you
+  useStore(); // redraws the tab bar when the runner changes their colour
   return (
     <Tabs
       screenOptions={{
