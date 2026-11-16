@@ -166,6 +166,8 @@ export default function ProfileScreen() {
   ]);
 
   const stravaRuns = state.runs.filter((r) => r.source === 'strava').length;
+  // Greyed out for anyone not already connected, while Strava's limit on connected athletes is full.
+  const stravaClosed = !tokens && !strava.NEW_CONNECTIONS_OPEN;
 
   // ---- Layout ----
   const [open, setOpen] = useState<'avatar' | 'health' | 'strava' | null>(null); // which row is expanded
@@ -296,12 +298,14 @@ export default function ProfileScreen() {
             )}
           </Row>
 
-          <Row iconNode={<Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>S</Text>} iconBg={STRAVA_ORANGE} title="Strava" last
-            sub={!strava.isConfigured() ? 'Developer note: set extra.stravaAuthServer in app.json'
+          <Row iconNode={<Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>S</Text>}
+            iconBg={stravaClosed ? C.card2 : STRAVA_ORANGE} title="Strava" titleColor={stravaClosed ? C.sec : C.txt} last
+            sub={stravaClosed ? 'Not available during testing. Use Apple Health for your watch runs'
+              : !strava.isConfigured() ? 'Developer note: set extra.stravaAuthServer in app.json'
               : tokens ? `${tokens.athlete?.firstname ? `${tokens.athlete.firstname} ${tokens.athlete.lastname ?? ''}`.trim() + ' · ' : ''}${stravaRuns} runs · personal XP only`
               : 'Past runs for personal XP and badges'}
-            onPress={tokens ? () => toggle('strava') : doConnect}
-            right={tokens ? <Chevron open={open === 'strava'} /> : <Pill label="Connect" color={STRAVA_ORANGE} ink="#fff" />}>
+            onPress={stravaClosed ? undefined : tokens ? () => toggle('strava') : doConnect}
+            right={stravaClosed ? undefined : tokens ? <Chevron open={open === 'strava'} /> : <Pill label="Connect" color={STRAVA_ORANGE} ink="#fff" />}>
             {open === 'strava' && tokens && (
               <View style={{ paddingHorizontal: 16, paddingBottom: 16 }}>
                 <Text style={[s.sub, { marginTop: 0, marginBottom: 12 }]}>Import more of your Strava history. Runs already imported are never counted twice.</Text>

@@ -13,6 +13,13 @@ import { decodePolyline, kmPerTile, simplify } from './geo';
 export const AUTH_SERVER: string = (Constants.expoConfig?.extra as any)?.stravaAuthServer ?? '';
 export const isConfigured = () => /^https:\/\//.test(AUTH_SERVER);
 
+/**
+ * Can new people connect Strava? Strava caps how many athletes may connect to an app until it has
+ * reviewed it, and LevelUp+ is at that cap. Set to true once Strava raises the limit.
+ * Anyone already connected keeps working either way.
+ */
+export const NEW_CONNECTIONS_OPEN = false;
+
 const TOK = 'strava.tokens';
 export type StravaTokens = {
   access_token: string; refresh_token: string; expires_at: number;
