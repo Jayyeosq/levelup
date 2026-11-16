@@ -1,7 +1,9 @@
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Share, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import RunnerCard, { RunnerRef } from '../components/RunnerCard';
 import { Avatar, Btn, C, Card, Icon, IconName, num, s, SectionLabel } from '../components/ui';
 import { useAuth } from '../lib/auth';
 import * as cm from '../lib/community';
@@ -19,10 +21,17 @@ const ago = (iso: string) => {
   return `${Math.round(h / 24)}d`;
 };
 
+type OpenRunner = (r: RunnerRef) => void;
+const chip = (on: boolean) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1, borderColor: on ? C.acc : C.line2, backgroundColor: on ? 'rgba(255,106,43,0.12)' : 'transparent' } as const);
+
 export default function Community() {
   const [seg, setSeg] = useState<Seg>('feed');
   const { userId } = useAuth();
   const requests = cm.usePendingRequests(userId);
+  // Tapping a runner anywhere here opens their card. Closing it reloads the list underneath.
+  const [runner, setRunner] = useState<RunnerRef | null>(null);
+  const [reload, setReload] = useState(0);
+  const open: OpenRunner = (r) => { if (r.id !== userId) setRunner(r); };
   return (
     <SafeAreaView edges={['top']} style={s.screen}>
       <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
@@ -36,31 +45,40 @@ export default function Community() {
           ))}
         </View>
       </View>
-      {seg === 'feed' ? <Feed goFriends={() => setSeg('friends')} /> : seg === 'board' ? <Board /> : <Friends />}
+      {seg === 'feed' ? <Feed key={reload} goFriends={() => setSeg('friends')} goBoard={() => setSeg('board')} open={open} />
+        : seg === 'board' ? <Board key={reload} open={open} /> : <Friends key={reload} open={open} />}
+      <RunnerCard runner={runner} onClose={() => { setRunner(null); setReload((n) => n + 1); }} />
     </SafeAreaView>
   );
 }
 
 // ---------------- Feed ----------------
-function Feed({ goFriends }: { goFriends: () => void }) {
+function Feed({ goFriends, goBoard, open }: { goFriends: () => void; goBoard: () => void; open: OpenRunner }) {
   const { userId } = useAuth();
   const [items, setItems] = useState<cm.Activity[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [picker, setPicker] = useState<string | null>(null); // the post whose reaction picker is open
 
   const load = useCallback(async () => {
     try { setItems(await cm.fetchFeed()); setErr(null); } catch (e: any) { setErr(e?.message ?? 'Could not load the feed.'); }
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const toggleKudos = async (a: cm.Activity) => {
+  // One reaction per post: tapping the one you gave removes it, tapping another changes it.
+  const react = async (a: cm.Activity, emoji: string) => {
     if (!userId || a.user_id === userId) return;
-    const mine = a.kudos.some((k) => k.user_id === userId);
-    setItems((cur) => cur?.map((x) => x.id === a.id ? { ...x, kudos: mine ? x.kudos.filter((k) => k.user_id !== userId) : [...x.kudos, { user_id: userId }] } : x) ?? null);
-    try { await cm.setKudos(a.id, !mine); } catch { load(); }
+    const mine = a.kudos.find((k) => k.user_id === userId);
+    const next = mine && (mine.emoji ?? '👍') === emoji ? null : emoji;
+    setPicker(null);
+    Haptics.selectionAsync().catch(() => {});
+    setItems((cur) => cur?.map((x) => x.id !== a.id ? x
+      : { ...x, kudos: [...x.kudos.filter((k) => k.user_id !== userId), ...(next ? [{ user_id: userId, emoji: next }] : [])] }) ?? null);
+    try { await cm.setReaction(a.id, next); } catch { load(); }
   };
 
   if (!items && !err) return <ActivityIndicator color={C.acc} style={{ marginTop: 40 }} />;
+  const onlyMine = !!items?.length && items.every((a) => a.user_id === userId);
 
   return (
     <FlatList
@@ -77,29 +95,61 @@ function Feed({ goFriends }: { goFriends: () => void }) {
           <Btn title="Find friends" icon="user-plus" onPress={goFriends} />
         </Card>
       }
+      ListFooterComponent={onlyMine ? (
+        <Card style={{ alignItems: 'center', paddingVertical: 20 }}>
+          <Text style={[s.txt, { textAlign: 'center' }]}>Only your runs so far</Text>
+          <Text style={[s.sub, { textAlign: 'center', marginBottom: 12 }]}>When friends run, their posts appear here and you can react to them. Give a quiet friend a nudge.</Text>
+          <Btn title="See who to nudge" kind="ghost" icon="bell" onPress={goBoard} style={{ paddingVertical: 12 }} />
+        </Card>
+      ) : undefined}
       renderItem={({ item: a }) => {
-        const mine = a.kudos.some((k) => k.user_id === userId);
         const own = a.user_id === userId;
+        const mine = a.kudos.find((k) => k.user_id === userId);
         const who = own ? 'You' : `@${a.profiles?.username ?? 'runner'}`;
         let line = '', icon: IconName = 'activity';
         if (a.kind === 'run') { line = `ran ${Number(a.data.km).toFixed(2)} km · +${a.data.xp} XP${a.data.test ? ' · test' : ''}`; icon = 'activity'; }
         else if (a.kind === 'level_up') { line = `reached level ${a.data.level}${a.data.title ? ` · ${a.data.title}` : ''}`; icon = 'chevrons-up'; }
         else { line = `earned the ${a.data.name} badge`; icon = 'award'; }
+        const counts = cm.REACTIONS.map((e) => [e, a.kudos.filter((k) => (k.emoji ?? '👍') === e).length] as const).filter(([, n]) => n > 0);
         return (
-          <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Avatar a={a.profiles?.avatar ?? '🏃'} />
-            <View style={{ flex: 1 }}>
-              <Text style={[s.txt, num]}><Text style={{ fontWeight: '600' }}>{who}</Text> {line}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                <Icon name={icon} size={13} color={C.mut} />
-                <Text style={[s.sub, { marginTop: 0, color: C.mut }]}>{ago(a.created_at)}</Text>
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Pressable disabled={own} onPress={() => open({ id: a.user_id, username: a.profiles?.username ?? 'runner', avatar: a.profiles?.avatar ?? '🏃' })}>
+                <Avatar a={a.profiles?.avatar ?? '🏃'} />
+              </Pressable>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.txt, num]}><Text style={{ fontWeight: '600' }}>{who}</Text> {line}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                  <Icon name={icon} size={13} color={C.mut} />
+                  <Text style={[s.sub, { marginTop: 0, color: C.mut }]}>{ago(a.created_at)}</Text>
+                </View>
               </View>
             </View>
-            <Pressable onPress={() => toggleKudos(a)} disabled={own} hitSlop={10}
-              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: mine ? C.acc : C.line2, opacity: own && !a.kudos.length ? 0.4 : 1 }}>
-              <Icon name="thumbs-up" size={15} color={mine ? C.acc : C.sec} />
-              <Text style={[{ color: mine ? C.acc : C.sec, fontWeight: '600', fontSize: 13 }, num]}>{a.kudos.length || ''}</Text>
-            </Pressable>
+            {(counts.length > 0 || !own) && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                {counts.map(([e, n]) => {
+                  const on = !!mine && (mine.emoji ?? '👍') === e;
+                  return (
+                    <Pressable key={e} disabled={own} onPress={() => react(a, e)} hitSlop={4} style={chip(on)}>
+                      <Text style={{ fontSize: 15 }}>{e}</Text>
+                      <Text style={[{ color: on ? C.acc : C.sec, fontWeight: '600', fontSize: 13 }, num]}>{n}</Text>
+                    </Pressable>
+                  );
+                })}
+                {!own && picker !== a.id && (
+                  <Pressable onPress={() => setPicker(a.id)} hitSlop={4} style={chip(false)}>
+                    <Icon name="smile" size={15} color={C.sec} />
+                    <Text style={{ color: C.sec, fontWeight: '500', fontSize: 13 }}>{mine ? 'Change' : 'React'}</Text>
+                  </Pressable>
+                )}
+                {!own && picker === a.id && cm.REACTIONS.map((e) => (
+                  <Pressable key={`pick-${e}`} onPress={() => react(a, e)} hitSlop={4} accessibilityLabel={`React with ${e}`}
+                    style={{ width: 40, height: 36, borderRadius: 18, backgroundColor: C.card2, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 19 }}>{e}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </Card>
         );
       }}
@@ -110,12 +160,13 @@ function Feed({ goFriends }: { goFriends: () => void }) {
 // ---------------- Leaderboard ----------------
 const SCOPES: [cm.Scope, string][] = [['friends', 'Friends'], ['town', 'My town'], ['all', 'All Singapore']];
 
-function Board() {
+function Board({ open }: { open: OpenRunner }) {
   const { profile } = useStore();
   const [scope, setScope] = useState<cm.Scope>('friends');
   const [rows, setRows] = useState<cm.LeaderRow[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [nudged, setNudged] = useState<Record<string, true>>({});
 
   const load = useCallback(async (sc: cm.Scope) => {
     try { setRows(await cm.fetchLeaderboard(sc)); setErr(null); } catch (e: any) { setErr(e?.message ?? 'Could not load the leaderboard.'); }
@@ -123,6 +174,15 @@ function Board() {
   useFocusEffect(useCallback(() => { load(scope); }, [load, scope]));
 
   const pick = (sc: cm.Scope) => { setScope(sc); setRows(null); load(sc); };
+
+  const nudge = async (r: cm.LeaderRow) => {
+    try {
+      const res = await cm.nudge(r.user_id);
+      if (res === 'sent' || res === 'already') { setNudged((n) => ({ ...n, [r.user_id]: true })); Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); }
+      else if (res === 'no_phone') Alert.alert('Nudge not sent', `@${r.username} hasn't turned on alerts yet, so a nudge can't reach them.`);
+    } catch (e: any) { Alert.alert('Nudge not sent', e?.message ?? String(e)); }
+  };
+  const quiet = !!rows?.length && rows.every((r) => r.week_xp === 0);
 
   return (
     <FlatList
@@ -139,29 +199,43 @@ function Board() {
               </Pressable>
             ))}
           </View>
-          <Text style={[s.sub, { marginTop: 12 }]}>XP earned since Monday. Resets every Monday at midnight.</Text>
+          <Text style={[s.sub, { marginTop: 12 }]}>
+            {quiet ? 'Nobody has run yet this week. The first run takes the lead.' : 'XP earned since Monday. Resets every Monday at midnight.'}
+          </Text>
           {scope === 'town' && !profile.homeTown && <Text style={[s.sub, { color: C.bad }]}>Set your home town on the Profile tab to see your town.</Text>}
           {err && <Text style={[s.sub, { color: C.bad }]}>{err}</Text>}
         </View>
       }
       ListEmptyComponent={rows ? <Text style={s.sub}>Nobody has run yet this week. Be first.</Text> : <ActivityIndicator color={C.acc} style={{ marginTop: 24 }} />}
-      renderItem={({ item: r }) => (
-        <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, marginBottom: 8 }, r.is_me && { borderColor: C.acc }]}>
-          <Text style={[{ width: 28, color: r.rank <= 3 ? C.acc : C.mut, fontWeight: '600', fontSize: 16, textAlign: 'center' }, num]}>{r.rank}</Text>
-          <Avatar a={r.avatar} size={34} />
-          <View style={{ flex: 1 }}>
-            <Text style={[s.txt, { fontWeight: '600' }]}>{r.is_me ? 'You' : `@${r.username}`}</Text>
-            <Text style={[s.sub, { marginTop: 0 }]}>Level {r.level}{r.home_town ? ` · ${r.home_town}` : ''}</Text>
-          </View>
-          <Text style={[s.txt, num, { fontWeight: '600' }]}>{r.week_xp.toLocaleString()} <Text style={{ color: C.mut, fontWeight: '400', fontSize: 12 }}>XP</Text></Text>
-        </View>
-      )}
+      renderItem={({ item: r }) => {
+        const ranked = r.week_xp > 0; // no rank until you've earned XP this week
+        const canNudge = scope === 'friends' && !r.is_me && !ranked;
+        return (
+          <Pressable disabled={r.is_me} onPress={() => open({ id: r.user_id, username: r.username, avatar: r.avatar, level: r.level, home_town: r.home_town })}
+            style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, marginBottom: 8 }, r.is_me && { borderColor: C.acc }]}>
+            <Text style={[{ width: 28, color: ranked && r.rank <= 3 ? C.acc : C.mut, fontWeight: '600', fontSize: 16, textAlign: 'center' }, num]}>{ranked ? r.rank : '–'}</Text>
+            <Avatar a={r.avatar} size={34} />
+            <View style={{ flex: 1 }}>
+              <Text style={[s.txt, { fontWeight: '600' }]} numberOfLines={1}>{r.is_me ? 'You' : `@${r.username}`}</Text>
+              <Text style={[s.sub, { marginTop: 0 }]} numberOfLines={1}>Level {r.level}{r.home_town ? ` · ${r.home_town}` : ''}</Text>
+            </View>
+            {canNudge ? (
+              <Pressable onPress={() => nudge(r)} disabled={nudged[r.user_id]} hitSlop={8} style={chip(false)}>
+                <Icon name={nudged[r.user_id] ? 'check' : 'bell'} size={14} color={nudged[r.user_id] ? C.good : C.acc} />
+                <Text style={{ color: nudged[r.user_id] ? C.sec : C.acc, fontWeight: '600', fontSize: 13 }}>{nudged[r.user_id] ? 'Nudged' : 'Nudge'}</Text>
+              </Pressable>
+            ) : (
+              <Text style={[s.txt, num, { fontWeight: '600' }]}>{r.week_xp.toLocaleString()} <Text style={{ color: C.mut, fontWeight: '400', fontSize: 12 }}>XP</Text></Text>
+            )}
+          </Pressable>
+        );
+      }}
     />
   );
 }
 
 // ---------------- Friends ----------------
-function Friends() {
+function Friends({ open }: { open: OpenRunner }) {
   const { userId } = useAuth();
   const { profile } = useStore();
   const [rows, setRows] = useState<cm.FriendRow[] | null>(null);
@@ -196,11 +270,13 @@ function Friends() {
 
   const Row = ({ r, right }: { r: cm.FriendRow; right: React.ReactNode }) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
-      <Avatar a={r.other.avatar} size={36} />
-      <View style={{ flex: 1 }}>
-        <Text style={[s.txt, { fontWeight: '600' }]}>@{r.other.username}</Text>
-        <Text style={[s.sub, { marginTop: 0 }]}>Level {r.other.level}{r.other.home_town ? ` · ${r.other.home_town}` : ''}</Text>
-      </View>
+      <Pressable onPress={() => open(r.other)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Avatar a={r.other.avatar} size={36} />
+        <View style={{ flex: 1 }}>
+          <Text style={[s.txt, { fontWeight: '600' }]}>@{r.other.username}</Text>
+          <Text style={[s.sub, { marginTop: 0 }]}>Level {r.other.level}{r.other.home_town ? ` · ${r.other.home_town}` : ''}</Text>
+        </View>
+      </Pressable>
       {right}
     </View>
   );

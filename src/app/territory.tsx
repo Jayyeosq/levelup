@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import MapView, { Polygon, Polyline, Region } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn, C, Hex, Icon, num, s } from '../components/ui';
@@ -46,14 +46,29 @@ export default function Territory() {
   const region = useRef<Region | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // centre once on open
-  useEffect(() => {
-    (async () => {
-      const ids = Object.keys(held);
-      const target = (await currentPosition()) ?? (ids.length ? tileCenter(ids[0]) : null);
-      if (target) mapRef.current?.animateToRegion({ ...target, latitudeDelta: 0.03, longitudeDelta: 0.03 }, 600);
-    })();
-  }, []);
+  // Centre on where you are: when the map is ready, and again on a later visit if location
+  // wasn't allowed yet. `force` is the "my location" button: always moves, and zooms in closer.
+  const centred = useRef(false);
+  const centre = async (force = false): Promise<boolean> => {
+    if (centred.current && !force) return true;
+    const me = await currentPosition();
+    const ids = Object.keys(held);
+    const target = me ?? (force ? null : ids.length ? tileCenter(ids[0]) : null);
+    if (!target || !mapRef.current) return false;
+    if (me) centred.current = true;
+    const d = force ? 0.012 : 0.03;
+    mapRef.current.animateToRegion({ ...target, latitudeDelta: d, longitudeDelta: d }, 600);
+    return !!me;
+  };
+  const centreRef = useRef(centre);
+  centreRef.current = centre;
+  useEffect(() => { centreRef.current(); }, []);
+  const locate = async () => {
+    if (await centre(true)) return;
+    Alert.alert('Location is off', 'Allow location for LevelUp+ in Settings to jump to where you are.', [
+      { text: 'Not now', style: 'cancel' }, { text: 'Open Settings', onPress: () => Linking.openSettings() },
+    ]);
+  };
 
   const loadBox = useCallback(async (r: Region) => {
     if (r.latitudeDelta > MAX_DELTA || r.longitudeDelta > MAX_DELTA) { setTooFar(true); return; }
@@ -77,6 +92,7 @@ export default function Territory() {
 
   // Kings + "who took my tiles" every time you open the tab
   useFocusEffect(useCallback(() => {
+    centreRef.current();
     if (!userId) return;
     push.state(userId).then(setPushState);
     (async () => {
@@ -118,7 +134,7 @@ export default function Territory() {
     <View style={s.screen}>
       <MapView ref={mapRef} style={{ flex: 1 }} showsUserLocation userInterfaceStyle="dark"
         initialRegion={{ latitude: 1.3521, longitude: 103.8198, latitudeDelta: 0.25, longitudeDelta: 0.25 }}
-        onRegionChangeComplete={onRegion}
+        onRegionChangeComplete={onRegion} onMapReady={() => centreRef.current()}
         onPress={(e) => setSel(tileOf(e.nativeEvent.coordinate))}>
         {/* One tap reaches this handler twice on iOS (the tile's press bubbles up, then the map's own press),
             so selecting must be idempotent: never toggle here. Clear with the x on the card. */}
@@ -216,6 +232,11 @@ export default function Territory() {
           </View>
         </View>
       </SafeAreaView>
+
+      <Pressable onPress={locate} accessibilityLabel="Go to my location"
+        style={{ position: 'absolute', right: 12, bottom: 172, width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(14,16,20,0.92)', borderWidth: 1, borderColor: C.line2, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="navigation" color={C.acc} size={20} />
+      </Pressable>
 
       {/* Details of the tile you tapped, at thumb height */}
       {mode === 'battle' && sel && (

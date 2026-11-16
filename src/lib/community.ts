@@ -89,15 +89,20 @@ export async function removeFriendship(id: string) {
 export type Activity = {
   id: string; user_id: string; kind: 'run' | 'level_up' | 'badge'; data: any; created_at: string;
   profiles: { username: string; avatar: string } | null;
-  kudos: { user_id: string }[];
+  kudos: { user_id: string; emoji?: string }[];
 };
 
+/** Reactions a runner can leave on a friend's post (one per post; they can change it). */
+export const REACTIONS = ['👍', '🔥', '💪', '👏', '👑'] as const;
+
 export async function fetchFeed(): Promise<Activity[]> {
-  const { data, error } = await supabase.from('activities')
-    .select('id, user_id, kind, data, created_at, profiles!activities_user_id_fkey(username, avatar), kudos(user_id)')
+  const q = (kudos: string) => supabase.from('activities')
+    .select(`id, user_id, kind, data, created_at, profiles!activities_user_id_fkey(username, avatar), kudos(${kudos})`)
     .order('created_at', { ascending: false }).limit(60);
-  if (error) throw error;
-  return (data ?? []) as unknown as Activity[];
+  let res = await q('user_id, emoji');
+  if (res.error && /emoji/i.test(res.error.message)) res = await q('user_id'); // database not updated yet (0009)
+  if (res.error) throw res.error;
+  return (res.data ?? []) as unknown as Activity[];
 }
 
 export async function postActivities(rows: { kind: Activity['kind']; data: Record<string, unknown>; run_client_id?: string }[]) {
@@ -110,12 +115,50 @@ export async function deleteActivitiesForRun(clientId: string) {
   await supabase.from('activities').delete().eq('run_client_id', clientId);
 }
 
-export async function setKudos(activityId: string, give: boolean) {
-  const q = give
-    ? supabase.from('kudos').insert({ activity_id: activityId })
-    : supabase.from('kudos').delete().eq('activity_id', activityId).eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? '');
-  const { error } = await q;
+/** Sets, changes or (with null) removes your reaction on a post. */
+export async function setReaction(activityId: string, emoji: string | null) {
+  const me = (await supabase.auth.getSession()).data.session?.user.id ?? '';
+  if (!emoji) {
+    const { error } = await supabase.from('kudos').delete().eq('activity_id', activityId).eq('user_id', me);
+    if (error) throw error;
+    return;
+  }
+  let { error } = await supabase.from('kudos').upsert({ activity_id: activityId, user_id: me, emoji }, { onConflict: 'activity_id,user_id' });
+  if (error && /emoji/i.test(error.message)) ({ error } = await supabase.from('kudos').insert({ activity_id: activityId })); // database not updated yet (0009)
   if (error && !/duplicate/i.test(error.message)) throw error;
+}
+
+// ---------- runner card, friend requests from a card, nudges ----------
+export type RunnerCardData = {
+  username: string; avatar: string; home_town: string | null; level: number;
+  tiles_held: number; king_of: string[]; week_xp: number;
+  friendship: 'self' | 'friends' | 'sent' | 'incoming' | 'none';
+};
+
+export async function fetchRunnerCard(userId: string): Promise<RunnerCardData | null> {
+  const { data, error } = await supabase.rpc('runner_card', { p_user: userId });
+  if (error) throw error;
+  const r = (data as any[] | null)?.[0];
+  return r ? { ...r, tiles_held: Number(r.tiles_held), week_xp: Number(r.week_xp), king_of: r.king_of ?? [] } : null;
+}
+
+export async function requestFriend(otherId: string) {
+  const { error } = await supabase.from('friendships').insert({ addressee: otherId });
+  if (error && !/duplicate/i.test(error.message)) throw error;
+}
+
+export async function acceptFrom(otherId: string, me: string) {
+  const { error } = await supabase.from('friendships').update({ status: 'accepted' }).eq('requester', otherId).eq('addressee', me);
+  if (error) throw error;
+  refreshRequests(me).catch(() => {});
+}
+
+export type NudgeResult = 'sent' | 'already' | 'no_phone' | 'not_friends';
+/** Sends a friend a "time for a run?" notification. Once a day per friend. */
+export async function nudge(otherId: string): Promise<NudgeResult> {
+  const { data, error } = await supabase.rpc('nudge_friend', { p_user: otherId });
+  if (error) throw new Error(/nudge_friend/i.test(error.message) ? 'Nudges need the latest database update.' : error.message);
+  return data as NudgeResult;
 }
 
 // ---------- leaderboard ----------
