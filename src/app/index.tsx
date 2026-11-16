@@ -14,6 +14,7 @@ import * as tracker from '../lib/tracker';
 import { accentRgba } from '../lib/theme';
 
 const GPS_READY_M = 20;    // start once the signal is this accurate
+const tap = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => Haptics.impactAsync(style).catch(() => {});
 const AREA_HALF = 0.012;   // Battle tiles are loaded about 1.3 km around you
 
 const fmtTime = (sec: number) => {
@@ -97,6 +98,7 @@ export default function RunScreen() {
     } catch { begin(); }
   };
   const onStart = async () => {
+    tap(Haptics.ImpactFeedbackStyle.Medium);
     wantLocate.current = true;
     if ((await tracker.permissionState()) === 'ask') setPrime(true); // explain first; continues from the sheet
     else locate();
@@ -166,6 +168,7 @@ export default function RunScreen() {
   }, [runTileCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onFinish = () => {
+    tap(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('Finish run?', `${km.toFixed(2)} km in ${fmtTime(live.elapsedSec)}`, [
       { text: 'Keep running', style: 'cancel' },
       { text: 'Finish & save', onPress: async () => { const run = await tracker.finish(); addRun(run); } },
@@ -246,8 +249,8 @@ export default function RunScreen() {
           ) : (
             <View style={s.row}>
               {snap.status === 'running'
-                ? <Btn title="Pause" kind="ghost" onPress={tracker.pause} style={{ flex: 1 }} />
-                : <Btn title="Resume" kind="ghost" onPress={tracker.resume} style={{ flex: 1 }} />}
+                ? <Btn title="Pause" kind="ghost" onPress={() => { tap(); tracker.pause(); }} style={{ flex: 1 }} />
+                : <Btn title="Resume" kind="ghost" onPress={() => { tap(); tracker.resume(); }} style={{ flex: 1 }} />}
               <Btn title="Finish" onPress={onFinish} style={{ flex: 1 }} />
               <Pressable onPress={() => setLocked(true)} accessibilityLabel="Lock the screen controls" style={[s.btn, s.btnGhost, { width: 56, paddingHorizontal: 0 }]}>
                 <Icon name="lock" color={C.txt} />
