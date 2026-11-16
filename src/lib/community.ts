@@ -154,8 +154,6 @@ export async function acceptFrom(otherId: string, me: string) {
 }
 
 export type NudgeResult = 'sent' | 'already' | 'full' | 'no_phone' | 'not_friends';
-/** Ready-made text for nudging a friend by message when a notification can't reach them. */
-export const NUDGE_TEXT = "Time for a run? I'm waiting for you on LevelUp+ 🏃";
 /** Sends a friend a "time for a run?" notification. Once a day per friend. */
 export async function nudge(otherId: string): Promise<NudgeResult> {
   const { data, error } = await supabase.rpc('nudge_friend', { p_user: otherId });

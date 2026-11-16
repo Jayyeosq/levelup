@@ -1,7 +1,7 @@
 // A runner's public card: opened by tapping someone in the feed, leaderboard or friends list.
 // Shows only what the leaderboard and Battle map already show. Never an email, a run or a route.
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, Share, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
 import { useAuth } from '../lib/auth';
 import * as cm from '../lib/community';
 import { titleOf } from '../lib/game';
@@ -23,10 +23,9 @@ export default function RunnerCard({ runner, onClose }: { runner: RunnerRef | nu
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
-  const [canMessage, setCanMessage] = useState(false); // the nudge couldn't be delivered: offer a message instead
 
   useEffect(() => {
-    setCard(null); setNote(null); setCanMessage(false);
+    setCard(null); setNote(null);
     if (!runner) return;
     let live = true;
     setLoading(true);
@@ -46,7 +45,7 @@ export default function RunnerCard({ runner, onClose }: { runner: RunnerRef | nu
   };
   const add = () => run(async () => { await cm.requestFriend(runner.id); setCard((c) => (c ? { ...c, friendship: 'sent' } : c)); return 'Friend request sent.'; });
   const accept = () => run(async () => { if (userId) await cm.acceptFrom(runner.id, userId); setCard((c) => (c ? { ...c, friendship: 'friends' } : c)); return `You and @${runner.username} are now friends.`; });
-  const nudge = () => run(async () => { const r = await cm.nudge(runner.id); setCanMessage(r === 'no_phone'); return NUDGE_MSG[r] ?? 'Nudge sent.'; });
+  const nudge = () => run(async () => NUDGE_MSG[await cm.nudge(runner.id)] ?? 'Nudge sent.');
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
@@ -84,8 +83,7 @@ export default function RunnerCard({ runner, onClose }: { runner: RunnerRef | nu
               {f === 'incoming' && <Btn title="Accept friend request" icon="check" onPress={accept} />}
               {f === 'sent' && <Text style={[s.sub, { textAlign: 'center' }]}>Friend request sent. Waiting for them to accept.</Text>}
               {f === 'friends' && <Btn title="Nudge to run" icon="bell" onPress={nudge} />}
-              {f === 'friends' && canMessage && <Btn title="Send a message instead" kind="ghost" icon="message-circle" onPress={() => { Share.share({ message: cm.NUDGE_TEXT }).catch(() => {}); }} />}
-              {f === 'friends' && !canMessage && <Text style={[s.sub, { textAlign: 'center', marginTop: 0 }]}>You're friends. A nudge sends them a notification, once a day.</Text>}
+              {f === 'friends' && <Text style={[s.sub, { textAlign: 'center', marginTop: 0 }]}>You're friends. A nudge sends them a notification, once a day.</Text>}
             </View>
           )}
         </Pressable>
