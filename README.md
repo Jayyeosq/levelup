@@ -34,11 +34,11 @@ LevelUp+ is a running app for Singapore with game mechanics. Every km earns XP, 
 
 | Tab | What it does |
 |---|---|
-| **Run** | Live GPS tracking: distance, time, pace and your route. Pause and resume. In the app build it keeps tracking with the screen locked. Shows progress toward your weekly km goal. |
+| **Run** | Live GPS tracking: distance, time, pace and your route, with a haptic tap on the start, pause, resume and finish controls. It keeps tracking with the screen locked. Shows progress toward your weekly km goal. |
 | **Territory** | **Battle**: the shared map of who holds every tile, with steal alerts and a Kings list per town. **My tiles**: every tile you've run in during the last 30 days. |
-| **Community** | Add friends by username, see a friends-only feed of runs, level-ups and badges with kudos, and a weekly XP leaderboard (Friends / My town / All Singapore, resets Monday). |
+| **Community** | Add friends by username, see a friends-only feed with emoji reactions, tap any runner for a card (level, tiles held, towns ruled) to add or nudge them, and a weekly XP leaderboard (Friends / My town / All Singapore, resets Monday). |
 | **Progress** | Level, title, XP bar, and badges that show how close you are to the ones you haven't earned. Run history (long-press a run to delete it; everything is recalculated). |
-| **Profile** | Username, avatar, home town and weekly goal. Tile alerts, Apple Health and Strava connections, and your account (including forgot-password). |
+| **Profile** | Username, avatar, app colour, home town and weekly goal. Tile alerts, Apple Health and Strava connections, and your account (including forgot-password). |
 
 ---
 
@@ -113,10 +113,13 @@ Singapore is covered in hexagons about **156 m across**. Your GPS route is cut i
 | Source | XP and badges | Battle map, leaderboard, feed |
 |---|---|---|
 | Runs recorded in the app | ✅ | ✅ |
-| **Apple Health** (Apple Watch, Garmin, Coros and more) | ✅ | ✅ after the runner agrees |
+| **Apple Health** — Apple Watch | ✅ | ✅ after the runner agrees |
+| **Apple Health** — Garmin, Coros, other watches | ✅ | ⚠️ XP only, no tiles (see below) |
 | **Strava** | ✅ | ❌ personal only, because of Strava's API rules |
 
 Apple Health imports 90 days of runs when you connect, then syncs the last 14 days each time you open the app. Workouts written by Strava are skipped, and a run that appears in more than one source only counts once. If a run comes in from both Strava and Apple Health, the Apple Health copy replaces the Strava one so it can count publicly.
+
+**Tiles need the GPS route, and not every watch shares it.** An Apple Watch writes the route into Apple Health, so its runs claim tiles. Garmin, Coros and most other watches write the run to Apple Health *without* the route, so those runs earn XP but can't claim tiles. To claim tiles from a watch run, track it in the app instead. (Direct watch-API links that would carry the route were researched and parked — most need a registered company.)
 
 A run recorded in the app shows its reward screen the moment you finish. A watch run arrives in the background, so when it syncs LevelUp+ shows a **"While you were away"** summary instead: the XP earned, any level-up, and what it did on the Battle map.
 
@@ -181,7 +184,7 @@ Scan the QR code with the iPhone camera. Tunnel mode works on any Wi-Fi as long 
 ### One-time backend setup
 
 1. Create a Supabase project and put its URL and publishable key in `app.json` → `extra`. See **[ACCOUNTS_SETUP.md](ACCOUNTS_SETUP.md)**.
-2. In the Supabase SQL Editor, run the files in `supabase/migrations/` in order (`0001` to `0007`), then run `notify pgrst, 'reload schema';`.
+2. In the Supabase SQL Editor, run the files in `supabase/migrations/` in order (`0001` to `0011`), then run `notify pgrst, 'reload schema';`.
 3. Optional: Strava login, see **[STRAVA_SETUP.md](STRAVA_SETUP.md)**. Apple Health, see **[HEALTH_SETUP.md](HEALTH_SETUP.md)**.
 
 To change the game balance, edit the numbers at the top of `src/lib/game.ts`.
@@ -221,6 +224,8 @@ src/components/
   AuthScreen.tsx            sign up / log in
   HistoryModal.tsx          run history sheet
   HealthSync.tsx            background Apple Health sync
+  PushSync.tsx              registers the phone for push, routes taps
+  RunnerCard.tsx            tap-a-runner card: add friend, nudge
 src/lib/
   game.ts                   all game rules (XP, levels, badges, streaks, import and dedupe)
   geo.ts                    distance, the Singapore hex grid, towns
@@ -230,7 +235,10 @@ src/lib/
   auth.tsx, supabase.ts     accounts
   cloud.ts, store.tsx       cloud sync and the offline cache
   community.ts, battle.ts   feed, friends, leaderboard, Battle map
-supabase/migrations/        database tables, privacy rules and server functions (0001–0007)
+  avatars.ts                avatars and how they unlock
+  theme.ts                  per-runner accent colour
+  push.ts                   push notifications
+supabase/migrations/        database tables, privacy rules and server functions (0001–0011)
 supabase/functions/         strava-auth and auth-login Edge Functions
 docs/images/                images used in this README
 ```
@@ -248,7 +256,8 @@ docs/images/                images used in this README
 - [x] Onboarding intro and home-town pick, forgot-password, badge progress
 - [x] Push notifications: "your tile is under attack" and "your tile was taken"
 - [x] Reward screen for synced watch runs, step-count check, run-crash recovery
-- [ ] TestFlight for the first 10–20 testers
+- [x] Per-runner app colour and haptic run controls
+- [x] TestFlight for the first 10–20 testers (in UAT now)
 - [ ] Android with Health Connect
 - [ ] Server-side XP, Apple/Google sign-in and a privacy policy
 - [ ] Leagues, quests and seasons, based on what testers use most
