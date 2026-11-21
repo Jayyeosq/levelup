@@ -158,7 +158,7 @@ A run recorded in the app shows its reward screen the moment you finish. A watch
 
 ## Run it yourself
 
-You need a Mac (or PC), an iPhone, and Node.js LTS from https://nodejs.org.
+You need a Mac (or PC), an iPhone or Android phone, and Node.js LTS from https://nodejs.org.
 
 ```bash
 git clone https://github.com/Jayyeosq/levelup-.git levelup-plus
@@ -172,6 +172,16 @@ npm install
 npx eas-cli@latest build --profile development --platform ios   # once, or after native changes
 npx expo start --dev-client --tunnel ngrok
 ```
+
+**On Android** (a standalone APK you can install on any Android phone):
+
+```bash
+npx eas-cli@latest build --profile preview --platform android
+```
+
+Android needs a **Google Maps API key** or every map is blank (iOS uses Apple Maps and needs none). Put the key in `app.json` under `android.config.googleMaps.apiKey`, then restrict it on Google Cloud to the app package (`com.levelupplus.app`) and the signing SHA-1 from `npx eas-cli@latest credentials`. Share the build by its EAS link; testers tap **More details → Install anyway** past the Play Protect warning. JS-only changes reach installed builds with `npx eas-cli@latest update --channel preview`.
+
+> **Note:** the runtime version uses the fingerprint policy, so native config must be identical on your machine and on EAS. Don't feed native config (like the Maps key) through a secret env var — the local machine can't read it, the fingerprints diverge, and the build fails at "Configure expo-updates". Keep such values in `app.json`.
 
 **In Expo Go** (no Apple Health, keep the screen on while running):
 
@@ -258,6 +268,6 @@ docs/images/                images used in this README
 - [x] Reward screen for synced watch runs, step-count check, run-crash recovery
 - [x] Per-runner app colour and haptic run controls
 - [x] TestFlight for the first 10–20 testers (in UAT now)
-- [ ] Android with Health Connect
+- [x] Android: standalone APK, Google Maps, over-the-air updates (push via FCM and Health Connect still to add)
 - [ ] Server-side XP, Apple/Google sign-in and a privacy policy
 - [ ] Leagues, quests and seasons, based on what testers use most

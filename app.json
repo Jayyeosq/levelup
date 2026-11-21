@@ -17,6 +17,11 @@
     },
     "android": {
       "package": "com.levelupplus.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCWDnagZyZ8OfVnHuoQGSV_4NG7DlSs7ao"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#0E0F13",
         "foregroundImage": "./assets/android-icon-foreground.png",
