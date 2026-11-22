@@ -30,6 +30,7 @@ export const supported = () => !!lib();
 export async function state(uid: string): Promise<PushState> {
   const n = lib();
   if (!n) return 'unsupported';
+  if (Platform.OS !== 'ios') return 'unsupported'; // Android remote push needs FCM (not set up yet)
   try {
     const p = await n.getPermissionsAsync();
     if (!p.granted) return p.canAskAgain === false ? 'blocked' : 'off';
@@ -51,6 +52,7 @@ async function register(): Promise<void> {
 export async function enable(uid: string): Promise<PushState> {
   const n = lib();
   if (!n) return 'unsupported';
+  if (Platform.OS !== 'ios') return 'unsupported'; // Android remote push needs FCM (not set up yet)
   let p = await n.getPermissionsAsync();
   if (!p.granted && p.canAskAgain !== false) {
     p = await n.requestPermissionsAsync({ ios: { allowAlert: true, allowSound: true, allowBadge: false } });
